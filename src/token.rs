@@ -1,6 +1,9 @@
-use std::any:: Any;
+use std::option::Option;
+use std::any::Any;
 
-pub enum Tokens {
+#[allow(non_camel_case_types)]
+#[derive(Debug)]
+pub enum TokenType {
     // Single-character tokens.
     LEFT_PAREN, RIGHT_PAREN, LEFT_BRACE, RIGHT_BRACE,
     COMMA, DOT, MINUS, PLUS, SEMICOLON, SLASH, STAR,
@@ -21,16 +24,17 @@ pub enum Tokens {
     EOF,
 }
 
+#[derive(Debug)]
 pub struct Token {
-    token_type: Tokens,
-    lexeme: String,
-    literal: Any,
-    line: u32,
+    pub token_type: TokenType,
+    pub lexeme: String,
+    pub literal: Option<Box<Any>>,
+    pub line: usize,
 }
 
 impl Token {
     pub fn show(&self) -> String {
-        format!("{} {} {}", self.token_type, self.lexeme, self.literal)
+        format!("{:?} {} {:?}", self.token_type, self.lexeme, self.literal)
     }
 }
 

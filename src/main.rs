@@ -1,9 +1,13 @@
+#[macro_use]
+extern crate lazy_static;
+
 use std::fs;
 use std::io;
 use std::env;
 
 use std::io::Write;
 
+mod constants;
 mod scanner;
 mod token;
 mod errors;

@@ -3,6 +3,7 @@ use std::any::Any;
 
 use crate::token;
 use crate::errors;
+use crate::constants;
 
 use token::TokenType::*;
 
@@ -102,9 +103,21 @@ impl<'a, 'b> Scanner<'a, 'b> {
             },
             ' ' | '\r' | '\t' => (), // ignore whitespace
             '\n' => self.line += 1,
-            _ => self.error_reporter.report(self.line, String::from(""), String::from("Invalid character")),
+            '\"' => self.consume_string(),
+            default => {
+                if is_digit(default) {
+                    self.consume_number();
+                } else if default.is_alphabetic() {
+                    self.consume_identifier();
+                } else {
+                    self.error_reporter.report(self.line, String::from(""), String::from("Invalid character"));
+                }
+            }
         }
     }
+
+
+    // Lookahead Fuctions
 
     fn lookahead_with_consume(&mut self, expected: char) -> bool {
         if self.is_at_end() {
@@ -124,10 +137,87 @@ impl<'a, 'b> Scanner<'a, 'b> {
         self.source[self.current] as char
     }
 
+    fn peek_next(&self) -> char {
+        if self.current + 1 >= self.source.len() {
+            return '\0';
+        }
+        self.source[self.current + 1] as char
+    }
+
     fn advance(&mut self) -> char {
         self.current += 1;
         return *self.source.index(self.current - 1) as char;
     }
+
+
+    // Literal scanning
+
+    fn consume_string(&mut self) {
+        while self.peek() != '"' && !self.is_at_end() {
+            if self.peek() == '\n' {
+                self.line += 1;
+            }
+            self.advance();
+        }
+
+        if self.is_at_end() {
+            self.error_reporter.report(self.line, String::from(""), String::from("Unterminated string"));
+            return;
+        }
+
+        // Consume closing "
+        self.advance();
+
+        let value: String = String::from_utf8(self.source[self.start + 1..self.current - 1].to_vec())
+            .unwrap();
+
+        self.add_token(STRING, Some(Box::new(value)));
+    }
+
+    fn consume_number(&mut self) {
+        while is_digit(self.peek()) {
+            self.advance();
+        }
+
+        if self.peek() == '.' && is_digit(self.peek_next()) {
+            // Consume the "."
+            self.advance();
+
+            while is_digit(self.peek()) {
+                self.advance();
+            }
+        }
+
+        let maybe_num = String::from_utf8(self.source[self.start..self.current].to_vec())
+            .map(|s| s.parse::<f64>());
+
+        match maybe_num {
+            Ok(s) => self.add_token(NUMBER, Some(Box::new(s))),
+            Err(e) => self.error_reporter.report(self.line, String::from(""), format!("{:?}", e)),
+        }
+    }
+
+    fn consume_identifier(&mut self) {
+        while self.peek().is_alphanumeric() {
+            self.advance();
+        }
+        let text_result = String::from_utf8(self.source[self.start..self.current].to_vec());
+
+        match text_result {
+            Ok(t) => match constants::KEYWORDS.get(&t) {
+                Some(token_type) => {
+                    let t_type: token::TokenType = (**token_type).clone();
+                    self.add_token(t_type, None);
+                },
+                None => self.add_token(IDENTIFIER, None),
+            },
+            Err(e) => self.error_reporter.report(self.line, String::from(""), format!("{:?}", e)),
+        }
+
+    }
+
+
+    // Token manipulation
 
     fn add_token(&mut self, token: token::TokenType, literal: Option<Box<Any>>) {
         let text = self.source[self.start..self.current].to_vec();
@@ -140,7 +230,13 @@ impl<'a, 'b> Scanner<'a, 'b> {
         });
     }
 
+
+    // Helpers
     fn is_at_end(&self) -> bool {
         self.current >= self.source.len()
     }
+}
+
+fn is_digit(c: char) -> bool {
+    c >=  '0' && c <='9'
 }

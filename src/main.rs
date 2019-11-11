@@ -7,6 +7,7 @@ use std::env;
 
 use std::io::Write;
 
+mod ast;
 mod constants;
 mod scanner;
 mod token;

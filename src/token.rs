@@ -1,5 +1,5 @@
 use std::option::Option;
-use std::any::Any;
+use std::fmt;
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone)]
@@ -28,8 +28,29 @@ pub enum TokenType {
 pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,
-    pub literal: Option<Box<Any>>,
+    pub literal: Option<Literal>,
     pub line: usize,
+}
+
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.token_type)
+    }
+}
+
+#[derive(Debug)]
+pub enum Literal {
+    StringLit(String),
+    Number(f64),
+}
+
+impl fmt::Display for Literal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Literal::StringLit(s) => write!(f, "{}", s),
+            Literal::Number(n) => write!(f, "{}", n),
+        }
+    }
 }
 
 impl Token {

@@ -1,11 +1,13 @@
 use std::ops::Index;
-use std::any::Any;
+use std::str;
 
 use crate::token;
 use crate::errors;
 use crate::constants;
 
 use token::TokenType::*;
+use token::Literal;
+use token::Literal::{Number, StringLit};
 
 pub struct Scanner<'a, 'b> {
     source: &'a [u8],
@@ -171,7 +173,7 @@ impl<'a, 'b> Scanner<'a, 'b> {
         let value: String = String::from_utf8(self.source[self.start + 1..self.current - 1].to_vec())
             .unwrap();
 
-        self.add_token(STRING, Some(Box::new(value)));
+        self.add_token(STRING, Some(StringLit(value)));
     }
 
     fn consume_number(&mut self) {
@@ -192,7 +194,7 @@ impl<'a, 'b> Scanner<'a, 'b> {
             .map(|s| s.parse::<f64>());
 
         match maybe_num {
-            Ok(s) => self.add_token(NUMBER, Some(Box::new(s))),
+            Ok(s) => self.add_token(NUMBER, Some(Number(s.unwrap()))),
             Err(e) => self.error_reporter.report(self.line, String::from(""), format!("{:?}", e)),
         }
     }
@@ -201,12 +203,12 @@ impl<'a, 'b> Scanner<'a, 'b> {
         while self.peek().is_alphanumeric() {
             self.advance();
         }
-        let text_result = String::from_utf8(self.source[self.start..self.current].to_vec());
+        let text_result = str::from_utf8(&self.source[self.start..self.current]);
 
         match text_result {
             Ok(t) => match constants::KEYWORDS.get(&t) {
                 Some(token_type) => {
-                    let t_type: token::TokenType = (**token_type).clone();
+                    let t_type: token::TokenType = token_type.clone();
                     self.add_token(t_type, None);
                 },
                 None => self.add_token(IDENTIFIER, None),
@@ -219,7 +221,7 @@ impl<'a, 'b> Scanner<'a, 'b> {
 
     // Token manipulation
 
-    fn add_token(&mut self, token: token::TokenType, literal: Option<Box<Any>>) {
+    fn add_token(&mut self, token: token::TokenType, literal: Option<Literal>) {
         let text = self.source[self.start..self.current].to_vec();
 
         self.tokens.push(token::Token {

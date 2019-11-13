@@ -3,12 +3,12 @@ use crate::ast::expr::Expr;
 
 use Expr::*;
 
-struct PrettyPrinter {}
+pub struct PrettyPrinter {}
 
 impl Visitor<String> for PrettyPrinter {
     fn visit_expr(&mut self, e: &Expr) -> String {
         match e {
-            Literal(typ) => format!("{}", typ),
+            LiteralExpr(typ) => format!("{}", typ),
             Grouping(bx) => format!("(group {})", self.visit_expr(bx)),
             Unary(typ, bx) => format!("({} {})", typ, self.visit_expr(bx)),
             Binary(tok, left, right) => format!("({} {} {})", self.visit_expr(left), tok, self.visit_expr(right)),
@@ -41,12 +41,12 @@ mod tests {
                         literal: None,
                         line: 0,
                     },
-                    Box::new(Literal(Number(123.0))),
+                    Box::new(LiteralExpr(Number(123.0))),
                 )
             ),
             Box::new(
                 Grouping(
-                    Box::new(Literal(Number(45.67)))
+                    Box::new(LiteralExpr(Number(45.67)))
                 )
             )
         ));

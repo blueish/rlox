@@ -1,8 +1,10 @@
 use std::option::Option;
 use std::fmt;
 
+use crate::boxable::Boxable;
+
 #[allow(non_camel_case_types)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TokenType {
     // Single-character tokens.
     LEFT_PAREN, RIGHT_PAREN, LEFT_BRACE, RIGHT_BRACE,
@@ -24,7 +26,7 @@ pub enum TokenType {
     EOF,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,
@@ -38,10 +40,19 @@ impl fmt::Display for Token {
     }
 }
 
-#[derive(Debug)]
+impl Boxable for Token {
+    fn boxed(self) -> Box<Self> {
+        Box::new(self)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum Literal {
     StringLit(String),
     Number(f64),
+    True,
+    False,
+    Nil,
 }
 
 impl fmt::Display for Literal {
@@ -49,6 +60,9 @@ impl fmt::Display for Literal {
         match self {
             Literal::StringLit(s) => write!(f, "{}", s),
             Literal::Number(n) => write!(f, "{}", n),
+            Literal::True => write!(f, "{}", true),
+            Literal::False => write!(f, "{}", false),
+            Literal::Nil => write!(f, "Nil", ),
         }
     }
 }

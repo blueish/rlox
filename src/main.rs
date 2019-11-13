@@ -6,12 +6,17 @@ use std::io;
 use std::env;
 
 use std::io::Write;
+use std::time::{Instant};
 
 mod ast;
 mod constants;
 mod scanner;
 mod token;
 mod errors;
+mod parser;
+mod boxable;
+
+use crate::ast::Visitor;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -62,18 +67,36 @@ fn run_prompt() -> Result<(), String> {
 }
 
 fn run(input: String, error_reporter: &mut errors::ErrorReporter) -> Result<(), String> {
+    let mut time = Instant::now();
     let mut scanner: scanner::Scanner = scanner::Scanner::new(&input, error_reporter);
 
     let had_errors = scanner.scan_tokens();
+    println!("Scanning finished in {}micros", time.elapsed().as_micros());
     if had_errors {
         return Err(String::from("Had errors parsing."));
     }
 
     let tokens: Vec<token::Token> = scanner.tokens();
 
-    for token in tokens{
-        println!("{:?}", token);
+
+    for tok in &tokens {
+        println!("{:?}", tok);
     }
+
+
+    time = Instant::now();
+    let expr = parser::Parser::parse(&tokens, error_reporter);
+    println!("Parsing finished in {}micros", time.elapsed().as_micros());
+
+    match expr {
+        Ok(expr) =>  {
+            let mut pp = ast::printer::PrettyPrinter{};
+            let res = pp.visit_expr(&expr);
+            println!("{:?}", res);
+        },
+        Err(msg) => println!("{:?}", msg),
+    }
+
 
     Ok(())
 }

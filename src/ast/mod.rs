@@ -1,5 +1,5 @@
-mod expr;
-mod printer;
+pub mod expr;
+pub mod printer;
 
 use expr::Expr;
 

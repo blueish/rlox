@@ -2,8 +2,9 @@ use crate::token;
 use crate::ast::{Visitor, Node};
 
 
+#[derive(PartialEq, Debug)]
 pub enum Expr {
-    Literal(token::Literal),
+    LiteralExpr(token::Literal),
     Grouping(Box<Expr>),
     Unary(token::Token, Box<Expr>),
     Binary(token::Token, Box<Expr>, Box<Expr>),

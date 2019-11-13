@@ -4,7 +4,7 @@ pub struct ErrorReporter {
 
 impl ErrorReporter {
     pub fn report(&mut self, line: usize, wher: String, message: String) {
-        println!("[line {}] Error{}: {}", line, wher, message);
+        println!("[line {}] Error {}: {}", line, wher, message);
         self.had_errors = true;
     }
 }

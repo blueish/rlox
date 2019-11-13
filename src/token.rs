@@ -1,8 +1,6 @@
 use std::option::Option;
 use std::fmt;
 
-use crate::boxable::Boxable;
-
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenType {
@@ -40,12 +38,6 @@ impl fmt::Display for Token {
     }
 }
 
-impl Boxable for Token {
-    fn boxed(self) -> Box<Self> {
-        Box::new(self)
-    }
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub enum Literal {
     StringLit(String),
@@ -64,12 +56,6 @@ impl fmt::Display for Literal {
             Literal::False => write!(f, "{}", false),
             Literal::Nil => write!(f, "Nil", ),
         }
-    }
-}
-
-impl Token {
-    pub fn show(&self) -> String {
-        format!("{:?} {} {:?}", self.token_type, self.lexeme, self.literal)
     }
 }
 

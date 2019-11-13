@@ -14,7 +14,6 @@ mod scanner;
 mod token;
 mod errors;
 mod parser;
-mod boxable;
 
 use crate::ast::Visitor;
 
@@ -77,24 +76,33 @@ fn run(input: String, error_reporter: &mut errors::ErrorReporter) -> Result<(), 
     }
 
     let tokens: Vec<token::Token> = scanner.tokens();
-
-
     for tok in &tokens {
-        println!("{:?}", tok);
+        println!("{}", tok);
     }
-
 
     time = Instant::now();
     let expr = parser::Parser::parse(&tokens, error_reporter);
     println!("Parsing finished in {}micros", time.elapsed().as_micros());
 
-    match expr {
-        Ok(expr) =>  {
-            let mut pp = ast::printer::PrettyPrinter{};
-            let res = pp.visit_expr(&expr);
-            println!("{:?}", res);
-        },
-        Err(msg) => println!("{:?}", msg),
+    if expr.is_err() {
+        return Err(format!("{:?}", expr.unwrap_err()));
+    }
+
+    let expr = expr.unwrap();
+
+    let mut pp = ast::printer::PrettyPrinter{};
+    let res = pp.visit_expr(&expr);
+    println!("{:?}", res);
+
+    let mut interpreter = ast::interp::Interpreter{};
+
+    time = Instant::now();
+    let val = interpreter.visit_expr(&expr);
+    println!("Interp finished in {}micros", time.elapsed().as_micros());
+
+    match val {
+        Ok(lit) => println!("Result: {}", lit),
+        Err(e) => println!("Err: {:?}", e),
     }
 
 

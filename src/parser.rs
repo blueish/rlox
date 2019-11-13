@@ -48,8 +48,6 @@ impl<'a, 'b> Parser<'a, 'b> {
                 let mut expr: Expr = self.parse_binary_exprs(operands, level + 1)?;
 
                 while self.matches_single(token) {
-                    let right: Expr = self.parse_binary_exprs(operands, level + 1)?;
-
                     let m_op = self.previous().clone();
                     let op = match m_op {
                         Some(op) => op,
@@ -59,6 +57,9 @@ impl<'a, 'b> Parser<'a, 'b> {
                             message: "No previous operation".to_string(),
                         }),
                     }.clone();
+
+                    let right: Expr = self.parse_binary_exprs(operands, level + 1)?;
+
 
                     expr = Binary(op, Box::new(expr), Box::new(right));
                 }
@@ -260,19 +261,19 @@ mod tests {
         let e = Parser::parse(&vec!(
             Token {
                 token_type: NUMBER,
-                lexeme: String::from(""),
+                lexeme: String::from("1"),
                 literal: Some(Number(1.0)),
                 line: 1,
             },
             Token {
                 token_type: PLUS,
-                lexeme: String::from(""),
+                lexeme: String::from("+"),
                 literal: None,
                 line: 1,
             },
             Token {
                 token_type: NUMBER,
-                lexeme: String::from(""),
+                lexeme: String::from("2"),
                 literal: Some(Number(2.0)),
                 line: 1,
             },
@@ -281,9 +282,9 @@ mod tests {
         assert!(e.is_ok());
         assert_eq!(e.unwrap(), Binary(
             Token {
-                token_type: NUMBER,
-                lexeme: "".to_string(),
-                literal: Some(Number(2.0)),
+                token_type: PLUS,
+                lexeme: "+".to_string(),
+                literal: None,
                 line: 1,
             },
             Box::new(LiteralExpr(Number(1.0))),
@@ -309,7 +310,7 @@ mod tests {
             },
             Token {
                 token_type: LEFT_PAREN,
-                lexeme: String::from(""),
+                lexeme: String::from("("),
                 literal: None,
                 line: 1,
             },
@@ -330,9 +331,9 @@ mod tests {
         assert!(e.is_ok());
         assert_eq!(e.unwrap(), Binary(
             Token {
-                token_type: NUMBER,
-                lexeme: "".to_string(),
-                literal: Some(Number(2.0)),
+                token_type: PLUS,
+                lexeme: "+".to_string(),
+                literal: None,
                 line: 1,
             },
             Box::new(LiteralExpr(Number(1.0))),

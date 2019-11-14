@@ -1,5 +1,9 @@
 #[macro_use]
 extern crate lazy_static;
+extern crate log;
+
+use log::{info, error};
+use env_logger::Env;
 
 use std::fs;
 use std::io;
@@ -15,9 +19,11 @@ mod token;
 mod errors;
 mod parser;
 
-use crate::ast::Visitor;
-
 fn main() {
+    env_logger::from_env(Env::default()
+            .default_filter_or("info")
+    ).init();
+
     let args: Vec<String> = env::args().collect();
 
     let res = match args.len() {
@@ -28,7 +34,10 @@ fn main() {
 
     match res {
         Ok(()) => return,
-        Err(_) => panic!("Ran with errors"),
+        Err(e) => {
+            error!("Error executing lox code: {}", e);
+            panic!("Ran with errors");
+        },
     }
 }
 
@@ -60,7 +69,9 @@ fn run_prompt() -> Result<(), String> {
 
         match run(command.to_string(), error_reporter) {
             Ok(()) => (),
-            Err(e) => return Err(e)
+            Err(e) => {
+                error!("Error executing lox code: {}", e);
+            }
         };
     }
 }
@@ -70,41 +81,46 @@ fn run(input: String, error_reporter: &mut errors::ErrorReporter) -> Result<(), 
     let mut scanner: scanner::Scanner = scanner::Scanner::new(&input, error_reporter);
 
     let had_errors = scanner.scan_tokens();
-    println!("Scanning finished in {}micros", time.elapsed().as_micros());
+    info!("Scanning finished in {}micros", time.elapsed().as_micros());
     if had_errors {
         return Err(String::from("Had errors parsing."));
     }
 
     let tokens: Vec<token::Token> = scanner.tokens();
     for tok in &tokens {
-        println!("{}", tok);
+        info!("{}", tok);
     }
 
     time = Instant::now();
-    let expr = parser::Parser::parse(&tokens, error_reporter);
-    println!("Parsing finished in {}micros", time.elapsed().as_micros());
+    let statements = parser::Parser::parse(&tokens, error_reporter);
+    info!("Parsing finished in {}micros", time.elapsed().as_micros());
 
-    if expr.is_err() {
-        return Err(format!("{:?}", expr.unwrap_err()));
+    ast::printer::PrettyPrinter::print_ast(&statements);
+
+    let mut errs = Vec::new();
+    let mut valid_statements = Vec::new();
+
+    for stmt in statements {
+        if stmt.is_err() {
+            errs.push(stmt.unwrap_err());
+        } else {
+            valid_statements.push(stmt.unwrap());
+        }
     }
 
-    let expr = expr.unwrap();
-
-    let mut pp = ast::printer::PrettyPrinter{};
-    let res = pp.visit_expr(&expr);
-    println!("{:?}", res);
-
-    let mut interpreter = ast::interp::Interpreter{};
+    if errs.len() > 0 {
+        return Err(format!("Could not parse all statements: {:?}", errs));
+    }
 
     time = Instant::now();
-    let val = interpreter.visit_expr(&expr);
-    println!("Interp finished in {}micros", time.elapsed().as_micros());
+    let res = ast::interp::Interpreter::interp(valid_statements);
+    info!("Interp finished in {}micros", time.elapsed().as_micros());
 
-    match val {
-        Ok(lit) => println!("Result: {}", lit),
-        Err(e) => println!("Err: {:?}", e),
+    match res {
+        Ok(e) => {
+            println!("Result: {:?}", e);
+            Ok(())
+        },
+        Err(e) => Err(format!("Interp errors: {:?}", e)),
     }
-
-
-    Ok(())
 }

@@ -1,5 +1,7 @@
+use log::{info};
 use crate::ast::expr::Expr;
 use crate::ast::expr::Expr::{LiteralExpr, Unary, Binary, Grouping};
+use crate::ast::stmt::Statement;
 use crate::errors::ErrorReporter;
 use crate::token::{Token, TokenType, Literal};
 
@@ -21,15 +23,42 @@ pub struct Parser<'a, 'b> {
 
 
 impl<'a, 'b> Parser<'a, 'b> {
-    pub fn parse(tokens: &Vec<Token>, error_reporter: &mut ErrorReporter) -> Result<Expr, ParseError> {
+    pub fn parse(tokens: &Vec<Token>, error_reporter: &mut ErrorReporter) -> Vec<Result<Statement, ParseError>> {
         let mut parser = Parser {
             tokens: tokens,
             current: 0,
             error_reporter: error_reporter,
         };
 
-        parser.expression()
+        let mut statements: Vec<Result<Statement, ParseError>> = Vec::new();
+
+        while !parser.is_at_end() {
+            statements.push(parser.statement());
+        }
+
+        return statements;
     }
+
+    fn statement(&mut self) -> Result<Statement, ParseError> {
+        if self.matches_single(&PRINT) {
+            return self.print_statement();
+        }
+
+        return self.expression_statement();
+    }
+
+    fn print_statement(&mut self) -> Result<Statement, ParseError> {
+        let value = self.expression()?;
+        self.consume(&SEMICOLON, "Expect ; after value.")?;
+        return Ok(Statement::Print(value));
+    }
+
+    fn expression_statement(&mut self) -> Result<Statement, ParseError> {
+        let value = self.expression()?;
+        self.consume(&SEMICOLON, "Expect ; after value.")?;
+        return Ok(Statement::Expression(value));
+    }
+
 
     fn expression(&mut self) -> Result<Expr, ParseError> {
         self.parse_binary_exprs(&vec!(
@@ -99,7 +128,7 @@ impl<'a, 'b> Parser<'a, 'b> {
     }
 
     fn parse_primary(&mut self) -> Result<Expr, ParseError> {
-        match self.peek().token_type {
+        match &self.peek().token_type {
             FALSE =>  {
                 self.advance();
                 Ok(LiteralExpr(False))
@@ -113,19 +142,27 @@ impl<'a, 'b> Parser<'a, 'b> {
                 Ok(LiteralExpr(Nil))
             },
             LEFT_PAREN => {
+                info!("left paren");
                 self.advance();
                 let expr: Expr = self.expression()?;
+                info!("sub expr done {:?}", &expr);
                 self.consume(&RIGHT_PAREN, "Expect ')' after expression.")?;
+                info!("consumed right paren");
                 return Ok(Grouping(Box::new(expr)));
             },
-            _ => {
+            a => {
+                info!("{:?}", a);
                 let curr = self.peek().clone();
                 self.advance();
                 match &curr.literal {
                     Some(lit) => {
                         Ok(LiteralExpr(lit.clone()))
                     },
-                    None => panic!("No literal value in literal token"),
+                    None => Err(ParseError {
+                        line: curr.line,
+                        lexeme: curr.lexeme.clone(),
+                        message: format!("Parsing token {:?} yielded no literal", curr),
+                    }),
                 }
             },
         }
@@ -173,6 +210,7 @@ impl<'a, 'b> Parser<'a, 'b> {
 
     fn consume(&mut self, token: &TokenType, err_msg: &'static str) -> Result<(), ParseError> {
         if self.check(token) {
+            self.advance();
             return Ok(());
         }
 
@@ -209,7 +247,7 @@ impl<'a, 'b> Parser<'a, 'b> {
     // Helpers
 
     fn is_at_end(&self) -> bool {
-        self.current >= self.tokens.len()
+        self.peek().token_type == EOF
     }
 
     fn advance(&mut self) {
@@ -229,36 +267,77 @@ mod tests {
     #[test]
     fn num_lit() {
         let er = &mut ErrorReporter{ had_errors: false };
-        let e = Parser::parse(&vec!(Token {
-            token_type: NUMBER,
-            lexeme: String::from(""),
-            literal: Some(Number(12.0)),
-            line: 1,
-        }), er);
+        let results = Parser::parse(&vec!(
+            Token {
+                token_type: NUMBER,
+                lexeme: String::from(""),
+                literal: Some(Number(12.0)),
+                line: 1,
+            },
+            Token {
+                token_type: SEMICOLON,
+                lexeme: String::from(""),
+                literal: None,
+                line: 1,
+            },
+            Token {
+                token_type: EOF,
+                lexeme: String::from(""),
+                literal: None,
+                line: 1,
+            },
+        ), er);
 
-        assert!(e.is_ok());
-        assert_eq!(e.unwrap(), LiteralExpr(Number(12.0)));
+        assert_eq!(results.len(), 1);
+
+        match &results[0] {
+            Ok(e) => {
+                assert_eq!(*e, Statement::Expression(LiteralExpr(Number(12.0))));
+            },
+            Err(_) => assert!(false),
+        }
     }
 
     #[test]
     fn str_lit() {
         let er = &mut ErrorReporter{ had_errors: false };
-        let e = Parser::parse(&vec!(Token {
-            token_type: STRING,
-            lexeme: String::from(""),
-            literal: Some(Literal::StringLit("test".to_string())),
-            line: 1,
-        }), er);
+        let results = Parser::parse(&vec!(
+            Token {
+                token_type: STRING,
+                lexeme: String::from(""),
+                literal: Some(Literal::StringLit("test".to_string())),
+                line: 1,
+            },
+            Token {
+                token_type: SEMICOLON,
+                lexeme: String::from(""),
+                literal: None,
+                line: 1,
+            },
+            Token {
+                token_type: EOF,
+                lexeme: String::from(""),
+                literal: None,
+                line: 1,
+            },
+        ), er);
 
-        assert!(e.is_ok());
-        assert_eq!(e.unwrap(), LiteralExpr(StringLit("test".to_string())));
+        assert_eq!(results.len(), 1);
+
+        match &results[0] {
+            Ok(e) => {
+                assert_eq!(*e, Statement::Expression(LiteralExpr(StringLit("test".to_string()))));
+            },
+            Err(_) => assert!(false),
+        }
     }
+
 
 
     #[test]
     fn binary_exprs() {
         let er = &mut ErrorReporter{ had_errors: false };
-        let e = Parser::parse(&vec!(
+        let results = Parser::parse(&vec!(
             Token {
                 token_type: NUMBER,
                 lexeme: String::from("1"),
@@ -277,25 +356,43 @@ mod tests {
                 literal: Some(Number(2.0)),
                 line: 1,
             },
-        ), er);
-
-        assert!(e.is_ok());
-        assert_eq!(e.unwrap(), Binary(
             Token {
-                token_type: PLUS,
-                lexeme: "+".to_string(),
+                token_type: SEMICOLON,
+                lexeme: String::from(""),
                 literal: None,
                 line: 1,
             },
-            Box::new(LiteralExpr(Number(1.0))),
-            Box::new(LiteralExpr(Number(2.0)))
-        ));
+            Token {
+                token_type: EOF,
+                lexeme: String::from(""),
+                literal: None,
+                line: 1,
+            },
+        ), er);
+
+        assert_eq!(results.len(), 1);
+
+        match &results[0] {
+            Ok(e) => {
+                assert_eq!(*e, Statement::Expression(Binary(
+                    Token {
+                        token_type: PLUS,
+                        lexeme: "+".to_string(),
+                        literal: None,
+                        line: 1,
+                    },
+                    Box::new(LiteralExpr(Number(1.0))),
+                    Box::new(LiteralExpr(Number(2.0)))
+                )));
+            },
+            Err(_) => assert!(false),
+        }
     }
 
     #[test]
     fn nested_exprs() {
         let er = &mut ErrorReporter{ had_errors: false };
-        let e = Parser::parse(&vec!(
+        let results = Parser::parse(&vec!(
             Token {
                 token_type: NUMBER,
                 lexeme: String::from("1"),
@@ -326,18 +423,36 @@ mod tests {
                 literal: None,
                 line: 1,
             },
-        ), er);
-
-        assert!(e.is_ok());
-        assert_eq!(e.unwrap(), Binary(
             Token {
-                token_type: PLUS,
-                lexeme: "+".to_string(),
+                token_type: SEMICOLON,
+                lexeme: String::from(""),
                 literal: None,
                 line: 1,
             },
-            Box::new(LiteralExpr(Number(1.0))),
-            Box::new(Grouping(Box::new(LiteralExpr(Number(2.0)))))
-        ));
+            Token {
+                token_type: EOF,
+                lexeme: String::from(""),
+                literal: None,
+                line: 1,
+            },
+        ), er);
+
+        assert_eq!(results.len(), 1);
+
+        match &results[0] {
+            Ok(e) => {
+                assert_eq!(*e, Statement::Expression(Binary(
+                    Token {
+                        token_type: PLUS,
+                        lexeme: "+".to_string(),
+                        literal: None,
+                        line: 1,
+                    },
+                    Box::new(LiteralExpr(Number(1.0))),
+                    Box::new(Grouping(Box::new(LiteralExpr(Number(2.0)))))
+                )));
+            },
+            Err(_) => assert!(false),
+        }
     }
 }

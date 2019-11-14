@@ -1,10 +1,12 @@
-// use std::collections::HashMap;
+use std::collections::HashMap;
 use crate::token::{Literal};
 use Literal::*;
 
 use crate::ast::Visitor;
 use crate::ast::expr::Expr;
+use crate::ast::stmt::Statement;
 
+use Statement::*;
 use Expr::*;
 
 #[derive(Debug)]
@@ -13,7 +15,35 @@ pub struct InterpErr {
 }
 
 pub struct Interpreter {
-    // symbols: HashMap<String, Literal>,
+    symbols: HashMap<String, Literal>,
+}
+
+impl Interpreter {
+    pub fn interp(statements: Vec<Statement>) -> Result<Option<Literal>, Vec<InterpErr>> {
+        let mut interpreter = Interpreter {
+            symbols: HashMap::new(),
+        };
+
+        let mut last = None;
+        let mut errs = Vec::new();
+
+        for s in statements {
+            match interpreter.visit_stmt(&s) {
+                Ok(res) => {
+                    last = Some(res);
+                }
+                Err(e) => {
+                    errs.push(e);
+                },
+            }
+        }
+
+        if errs.len() > 0 {
+            return Err(errs)
+        }
+
+        Ok(last)
+    }
 }
 
 impl Visitor<Result<Literal, InterpErr>> for Interpreter {
@@ -133,15 +163,47 @@ impl Visitor<Result<Literal, InterpErr>> for Interpreter {
                                 msg: format!("One of {}, {} was not a number", left, right),
                             }),
                         }
-                        // match unwrap_num_lits(left, right) {
-                        //     Some((l, r)) => Ok(Number(l + r)),
-                        //     None => Err(InterpErr {
-                        //         msg: format!("One of {}, {} was not a number", left, right),
-                        //     }),
-                        // }
                     },
                     _ => Err(InterpErr {
                         msg: format!("Invalid binary token type {}", tok),
+                    }),
+                }
+            },
+        }
+    }
+
+    fn visit_stmt(&mut self, s: &Statement) -> Result<Literal, InterpErr> {
+        match s {
+            Empty => Ok(Nil),
+            Expression(e) => self.visit_expr(e),
+            Print(e) => {
+                println!("LOX: {:?}", self.visit_expr(e));
+                Ok(Nil)
+            },
+            Decl(id, Some(e)) => {
+                let lit = self.visit_expr(e)?;
+
+                self.symbols.insert(id.clone(), lit);
+                Ok(Nil)
+            },
+            Decl(id, None) => {
+                self.symbols.insert(id.clone(), Nil);
+                Ok(Nil)
+            },
+            Block(statements) => {
+                let mut errs = Vec::new();
+
+                for s in statements {
+                    match self.visit_stmt(s) {
+                        Ok(_) => (),
+                        Err(e) => errs.push(e),
+                    }
+                }
+
+                match errs.len() {
+                    0 => Ok(Nil),
+                    _ => Err(InterpErr {
+                        msg: format!("Block statement had errors: {:?}", errs),
                     }),
                 }
             },
@@ -199,7 +261,9 @@ mod tests {
 
     #[test]
     fn test_one_plus_two() {
-        let mut interpreter = Interpreter{};
+        let mut interpreter = Interpreter{
+            symbols: HashMap::new(),
+        };
 
         let val = interpreter.visit_expr(&Binary(
             Token {
@@ -218,7 +282,9 @@ mod tests {
 
     #[test]
     fn test_two_strings() {
-        let mut interpreter = Interpreter{};
+        let mut interpreter = Interpreter{
+            symbols: HashMap::new(),
+        };
 
         let val = interpreter.visit_expr(&Binary(
             Token {
@@ -237,7 +303,9 @@ mod tests {
 
     #[test]
     fn test_groupings() {
-        let mut interpreter = Interpreter{};
+        let mut interpreter = Interpreter{
+            symbols: HashMap::new(),
+        };
 
         let val = interpreter.visit_expr(&Binary(
             Token {

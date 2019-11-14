@@ -242,3 +242,138 @@ impl<'a, 'b> Scanner<'a, 'b> {
 fn is_digit(c: char) -> bool {
     c >=  '0' && c <='9'
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::token::Token;
+
+    #[test]
+    fn test_simple() {
+        let mut errs = errors::ErrorReporter{ had_errors: false };
+        let input = "1 + 2;".to_string();
+        let mut scanner = Scanner::new(&input, &mut errs);
+        let res = scanner
+            .scan_tokens();
+
+        // assert!(res, false);
+        assert_eq!(scanner.tokens(), vec!(
+            Token {
+                token_type: NUMBER,
+                lexeme: String::from("1"),
+                literal: Some(Number(1.0)),
+                line: 1,
+            },
+            Token {
+                token_type: PLUS,
+                lexeme: String::from("+"),
+                literal: None,
+                line: 1,
+            },
+            Token {
+                token_type: NUMBER,
+                lexeme: String::from("2"),
+                literal: Some(Number(2.0)),
+                line: 1,
+            },
+            Token {
+                token_type: SEMICOLON,
+                lexeme: String::from(";"),
+                literal: None,
+                line: 1,
+            },
+            Token {
+                token_type: EOF,
+                lexeme: String::from(""),
+                literal: None,
+                line: 1,
+            },
+        ));
+    }
+
+    #[test]
+    fn test_var() {
+        let mut errs = errors::ErrorReporter{ had_errors: false };
+        let input = "var a;".to_string();
+        let mut scanner = Scanner::new(&input, &mut errs);
+        let res = scanner
+            .scan_tokens();
+
+        // assert!(res, false);
+        assert_eq!(scanner.tokens(), vec!(
+            Token {
+                token_type: VAR,
+                lexeme: String::from("var"),
+                literal: None,
+                line: 1,
+            },
+            Token {
+                token_type: IDENTIFIER,
+                lexeme: String::from("a"),
+                literal: None,
+                line: 1,
+            },
+            Token {
+                token_type: SEMICOLON,
+                lexeme: String::from(";"),
+                literal: None,
+                line: 1,
+            },
+            Token {
+                token_type: EOF,
+                lexeme: String::from(""),
+                literal: None,
+                line: 1,
+            },
+        ));
+    }
+
+    #[test]
+    fn test_var_with_val() {
+        let mut errs = errors::ErrorReporter{ had_errors: false };
+        let input = "var a = 12;".to_string();
+        let mut scanner = Scanner::new(&input, &mut errs);
+        let res = scanner
+            .scan_tokens();
+
+        // assert!(res, false);
+        assert_eq!(scanner.tokens(), vec!(
+            Token {
+                token_type: VAR,
+                lexeme: String::from("var"),
+                literal: None,
+                line: 1,
+            },
+            Token {
+                token_type: IDENTIFIER,
+                lexeme: String::from("a"),
+                literal: None,
+                line: 1,
+            },
+            Token {
+                token_type: EQUAL,
+                lexeme: String::from("="),
+                literal: None,
+                line: 1,
+            },
+            Token {
+                token_type: NUMBER,
+                lexeme: String::from("12"),
+                literal: Some(Number(12.0)),
+                line: 1,
+            },
+            Token {
+                token_type: SEMICOLON,
+                lexeme: String::from(";"),
+                literal: None,
+                line: 1,
+            },
+            Token {
+                token_type: EOF,
+                lexeme: String::from(""),
+                literal: None,
+                line: 1,
+            },
+        ));
+    }
+}

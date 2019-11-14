@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use log::{info};
+
 use crate::token::{Literal};
 use Literal::*;
 
@@ -19,16 +21,18 @@ pub struct Interpreter {
 }
 
 impl Interpreter {
-    pub fn interp(statements: Vec<Statement>) -> Result<Option<Literal>, Vec<InterpErr>> {
-        let mut interpreter = Interpreter {
+    pub fn new() -> Interpreter {
+        Interpreter {
             symbols: HashMap::new(),
-        };
+        }
+    }
 
+    pub fn interp(&mut self, statements: Vec<Statement>) -> Result<Option<Literal>, Vec<InterpErr>> {
         let mut last = None;
         let mut errs = Vec::new();
 
         for s in statements {
-            match interpreter.visit_stmt(&s) {
+            match self.visit_stmt(&s) {
                 Ok(res) => {
                     last = Some(res);
                 }
@@ -50,6 +54,20 @@ impl Visitor<Result<Literal, InterpErr>> for Interpreter {
     fn visit_expr(&mut self, e: &Expr) -> Result<Literal, InterpErr> {
         use crate::token::TokenType::*;
         match e {
+            Identifier(id) => match self.symbols.get(id) {
+                Some(val) => Ok(val.clone()),
+                None => {
+                    Err(InterpErr {
+                        msg: format!("Identifier {:?} not bound in scope", id)
+                    })
+                },
+            },
+            Assignment(id, boxed_expr) => {
+                info!("Inserting symbol {} into table", id);
+                let val = self.visit_expr(boxed_expr)?;
+                self.symbols.insert(id.clone(), val.clone());
+                Ok(val)
+            },
             LiteralExpr(lit) => Ok(lit.clone()),
             Grouping(bx) => Ok(self.visit_expr(bx)?),
             Unary(tok, bx) => {
@@ -174,38 +192,10 @@ impl Visitor<Result<Literal, InterpErr>> for Interpreter {
 
     fn visit_stmt(&mut self, s: &Statement) -> Result<Literal, InterpErr> {
         match s {
-            Empty => Ok(Nil),
             Expression(e) => self.visit_expr(e),
             Print(e) => {
                 println!("LOX: {:?}", self.visit_expr(e));
                 Ok(Nil)
-            },
-            Decl(id, Some(e)) => {
-                let lit = self.visit_expr(e)?;
-
-                self.symbols.insert(id.clone(), lit);
-                Ok(Nil)
-            },
-            Decl(id, None) => {
-                self.symbols.insert(id.clone(), Nil);
-                Ok(Nil)
-            },
-            Block(statements) => {
-                let mut errs = Vec::new();
-
-                for s in statements {
-                    match self.visit_stmt(s) {
-                        Ok(_) => (),
-                        Err(e) => errs.push(e),
-                    }
-                }
-
-                match errs.len() {
-                    0 => Ok(Nil),
-                    _ => Err(InterpErr {
-                        msg: format!("Block statement had errors: {:?}", errs),
-                    }),
-                }
             },
         }
     }
@@ -299,6 +289,22 @@ mod tests {
 
         assert!(val.is_ok());
         assert_eq!(val.unwrap(), StringLit("asdf".to_string()))
+    }
+
+    #[test]
+    fn test_var() {
+        let mut interpreter = Interpreter{
+            symbols: HashMap::new(),
+        };
+
+        interpreter.symbols.insert("a".to_string(), Number(1.0));
+
+        let val = interpreter.visit_expr(
+            &Identifier("a".to_string()),
+        );
+
+        assert!(val.is_ok());
+        assert_eq!(val.unwrap(), Number(1.0));
     }
 
     #[test]

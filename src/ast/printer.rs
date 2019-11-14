@@ -31,28 +31,15 @@ impl PrettyPrinter {
 impl Visitor<String> for PrettyPrinter {
     fn visit_stmt(&mut self, s: &Statement) -> String {
         match s {
-            Empty => "<empty>".to_string(),
             Expression(e) => self.visit_expr(e),
             Print(e) => format!("PRINT {}", self.visit_expr(e)),
-            Decl(id, Some(e)) => format!("DECL {} -> {}", id,  self.visit_expr(e)),
-            Decl(id, None) => format!("DECL {} -> <none>", id),
-            Block(statements) => {
-                let mut ret = "{".to_string();
-
-                for s in statements {
-                    ret.push_str("\t");
-                    ret.push_str(&self.visit_stmt(s));
-                }
-
-                ret.push_str(&"}".to_string());
-
-                return ret;
-            },
         }
     }
 
     fn visit_expr(&mut self, e: &Expr) -> String {
         match e {
+            Identifier(id) => format!("id: {{ {} }}", id),
+            Assignment(id, boxed_expr) => format!("id {} -> {}", id, self.visit_expr(boxed_expr)),
             LiteralExpr(typ) => format!("{}", typ),
             Grouping(bx) => format!("(group {})", self.visit_expr(bx)),
             Unary(typ, bx) => format!("({} {})", typ, self.visit_expr(bx)),

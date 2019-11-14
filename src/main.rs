@@ -44,15 +44,17 @@ fn main() {
 fn run_file(filename: String) -> Result<(), String> {
     let file = fs::read_to_string(filename);
 
+    let interpreter = &mut ast::interp::Interpreter::new();
     let error_reporter: &mut errors::ErrorReporter = &mut errors::ErrorReporter{ had_errors: false };
 
     match file {
-        Ok(s) => run(s, error_reporter),
+        Ok(s) => run(s, interpreter,  error_reporter),
         Err(e) => Err(e.to_string()),
     }
 }
 
 fn run_prompt() -> Result<(), String> {
+    let interpreter = &mut ast::interp::Interpreter::new();
     loop {
         print!("lox > ");
         io::stdout().flush().unwrap();
@@ -67,7 +69,7 @@ fn run_prompt() -> Result<(), String> {
 
         let error_reporter: &mut errors::ErrorReporter = &mut errors::ErrorReporter{ had_errors: false };
 
-        match run(command.to_string(), error_reporter) {
+        match run(command.to_string(), interpreter, error_reporter) {
             Ok(()) => (),
             Err(e) => {
                 error!("Error executing lox code: {}", e);
@@ -76,7 +78,7 @@ fn run_prompt() -> Result<(), String> {
     }
 }
 
-fn run(input: String, error_reporter: &mut errors::ErrorReporter) -> Result<(), String> {
+fn run(input: String, interpreter: &mut ast::interp::Interpreter, error_reporter: &mut errors::ErrorReporter) -> Result<(), String> {
     let mut time = Instant::now();
     let mut scanner: scanner::Scanner = scanner::Scanner::new(&input, error_reporter);
 
@@ -87,15 +89,12 @@ fn run(input: String, error_reporter: &mut errors::ErrorReporter) -> Result<(), 
     }
 
     let tokens: Vec<token::Token> = scanner.tokens();
-    for tok in &tokens {
-        info!("{}", tok);
-    }
 
     time = Instant::now();
     let statements = parser::Parser::parse(&tokens, error_reporter);
     info!("Parsing finished in {}micros", time.elapsed().as_micros());
 
-    ast::printer::PrettyPrinter::print_ast(&statements);
+    info!("ast: {}", ast::printer::PrettyPrinter::print_ast(&statements));
 
     let mut errs = Vec::new();
     let mut valid_statements = Vec::new();
@@ -113,7 +112,7 @@ fn run(input: String, error_reporter: &mut errors::ErrorReporter) -> Result<(), 
     }
 
     time = Instant::now();
-    let res = ast::interp::Interpreter::interp(valid_statements);
+    let res = interpreter.interp(valid_statements);
     info!("Interp finished in {}micros", time.elapsed().as_micros());
 
     match res {

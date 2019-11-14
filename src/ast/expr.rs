@@ -4,6 +4,8 @@ use crate::ast::{Visitor, Node};
 
 #[derive(PartialEq, Debug)]
 pub enum Expr {
+    Identifier(String),
+    Assignment(String, Box<Expr>),
     LiteralExpr(token::Literal),
     Grouping(Box<Expr>),
     Unary(token::Token, Box<Expr>),

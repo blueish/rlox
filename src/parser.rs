@@ -1,6 +1,5 @@
-use log::{info};
 use crate::ast::expr::Expr;
-use crate::ast::expr::Expr::{LiteralExpr, Unary, Binary, Grouping};
+use crate::ast::expr::Expr::*;
 use crate::ast::stmt::Statement;
 use crate::errors::ErrorReporter;
 use crate::token::{Token, TokenType, Literal};
@@ -21,7 +20,6 @@ pub struct Parser<'a, 'b> {
     error_reporter: &'b mut ErrorReporter,
 }
 
-
 impl<'a, 'b> Parser<'a, 'b> {
     pub fn parse(tokens: &Vec<Token>, error_reporter: &mut ErrorReporter) -> Vec<Result<Statement, ParseError>> {
         let mut parser = Parser {
@@ -33,11 +31,45 @@ impl<'a, 'b> Parser<'a, 'b> {
         let mut statements: Vec<Result<Statement, ParseError>> = Vec::new();
 
         while !parser.is_at_end() {
-            statements.push(parser.statement());
+            statements.push(parser.declaration());
         }
 
         return statements;
     }
+
+    fn declaration(&mut self) -> Result<Statement, ParseError> {
+        let res = match self.matches_single(&VAR) {
+            true => self.var_declaration(),
+            false => self.statement(),
+        };
+
+        match res {
+            Ok(s) => Ok(s),
+            Err(e) => {
+                self.synchronize();
+                Err(e)
+            }
+        }
+    }
+
+    fn var_declaration(&mut self) -> Result<Statement, ParseError> {
+
+        let name = self.consume(&IDENTIFIER, "Needed identifier after var")?
+            .clone();
+
+        let n = name.lexeme.clone();
+
+
+        let mut initializer = Box::new(LiteralExpr(Nil));
+        if self.matches_single(&EQUAL) {
+            initializer = Box::new(self.expression()?);
+        }
+
+        self.consume(&SEMICOLON, "Expected ';' after var decl")?;
+        return Ok(Statement::Expression(Assignment(n,  initializer)));
+    }
+
+
 
     fn statement(&mut self) -> Result<Statement, ParseError> {
         if self.matches_single(&PRINT) {
@@ -142,16 +174,17 @@ impl<'a, 'b> Parser<'a, 'b> {
                 Ok(LiteralExpr(Nil))
             },
             LEFT_PAREN => {
-                info!("left paren");
                 self.advance();
                 let expr: Expr = self.expression()?;
-                info!("sub expr done {:?}", &expr);
                 self.consume(&RIGHT_PAREN, "Expect ')' after expression.")?;
-                info!("consumed right paren");
                 return Ok(Grouping(Box::new(expr)));
             },
-            a => {
-                info!("{:?}", a);
+            IDENTIFIER => {
+                let curr = self.peek().clone();
+                self.advance();
+                Ok(Identifier(curr.lexeme))
+            },
+            _ => {
                 let curr = self.peek().clone();
                 self.advance();
                 match &curr.literal {
@@ -208,10 +241,10 @@ impl<'a, 'b> Parser<'a, 'b> {
         return false;
     }
 
-    fn consume(&mut self, token: &TokenType, err_msg: &'static str) -> Result<(), ParseError> {
+    fn consume(&mut self, token: &TokenType, err_msg: &'static str) -> Result<&Token, ParseError> {
         if self.check(token) {
             self.advance();
-            return Ok(());
+            return Ok(self.previous().unwrap());
         }
 
         let curr = self.peek().clone();
@@ -261,7 +294,10 @@ impl<'a, 'b> Parser<'a, 'b> {
 mod tests {
     use super::*;
     use crate::token::{Token, Literal};
-    use Literal::{Number, StringLit};
+
+    fn init() {
+        let _ = env_logger::builder().is_test(true).try_init();
+    }   use Literal::{Number, StringLit};
 
 
     #[test]
@@ -332,6 +368,47 @@ mod tests {
         }
     }
 
+    #[test]
+    fn var() {
+        init();
+        let er = &mut ErrorReporter{ had_errors: false };
+        let results = Parser::parse(&vec!(
+            Token {
+                token_type: VAR,
+                lexeme: String::from("var"),
+                literal: None,
+                line: 1,
+            },
+            Token {
+                token_type: IDENTIFIER,
+                lexeme: String::from("a"),
+                literal: None,
+                line: 1,
+            },
+            Token {
+                token_type: SEMICOLON,
+                lexeme: String::from(";"),
+                literal: None,
+                line: 1,
+            },
+            Token {
+                token_type: EOF,
+                lexeme: String::from(""),
+                literal: None,
+                line: 1,
+            },
+        ), er);
+
+        assert_eq!(results.len(), 1);
+
+        match &results[0] {
+            Ok(e) => {
+                let var_id = "a".to_string();
+                assert_eq!(*e, Statement::Expression(Assignment(var_id, Box::new(LiteralExpr(Literal::Nil)))));
+            },
+            Err(_) => assert!(false),
+        }
+    }
 
 
     #[test]

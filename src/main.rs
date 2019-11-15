@@ -18,6 +18,7 @@ mod scanner;
 mod token;
 mod errors;
 mod parser;
+mod interp;
 
 fn main() {
     env_logger::from_env(Env::default()
@@ -44,7 +45,7 @@ fn main() {
 fn run_file(filename: String) -> Result<(), String> {
     let file = fs::read_to_string(filename);
 
-    let interpreter = &mut ast::interp::Interpreter::new();
+    let interpreter = &mut interp::interpreter::Interpreter::new();
     let error_reporter: &mut errors::ErrorReporter = &mut errors::ErrorReporter{ had_errors: false };
 
     match file {
@@ -54,7 +55,7 @@ fn run_file(filename: String) -> Result<(), String> {
 }
 
 fn run_prompt() -> Result<(), String> {
-    let interpreter = &mut ast::interp::Interpreter::new();
+    let interpreter = &mut interp::interpreter::Interpreter::new();
     loop {
         print!("lox > ");
         io::stdout().flush().unwrap();
@@ -78,7 +79,7 @@ fn run_prompt() -> Result<(), String> {
     }
 }
 
-fn run(input: String, interpreter: &mut ast::interp::Interpreter, error_reporter: &mut errors::ErrorReporter) -> Result<(), String> {
+fn run(input: String, interpreter: &mut interp::interpreter::Interpreter, error_reporter: &mut errors::ErrorReporter) -> Result<(), String> {
     let mut time = Instant::now();
     let mut scanner: scanner::Scanner = scanner::Scanner::new(&input, error_reporter);
 

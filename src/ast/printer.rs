@@ -33,6 +33,7 @@ impl Visitor<String> for PrettyPrinter {
         match s {
             Expression(e) => self.visit_expr(e),
             Print(e) => format!("PRINT {}", self.visit_expr(e)),
+            VarDec(t, e) => format!("VARDEC {} -> {}", t.lexeme, self.visit_expr(e)),
         }
     }
 

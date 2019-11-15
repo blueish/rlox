@@ -1,15 +1,15 @@
-use std::collections::HashMap;
 use log::{info};
 
-use crate::token::{Literal};
-use Literal::*;
+use crate::interp::env::Environment;
 
 use crate::ast::Visitor;
 use crate::ast::expr::Expr;
 use crate::ast::stmt::Statement;
+use crate::token::{Literal};
 
 use Statement::*;
 use Expr::*;
+use Literal::*;
 
 #[derive(Debug)]
 pub struct InterpErr {
@@ -17,13 +17,13 @@ pub struct InterpErr {
 }
 
 pub struct Interpreter {
-    symbols: HashMap<String, Literal>,
+    symbols: Environment,
 }
 
 impl Interpreter {
     pub fn new() -> Interpreter {
         Interpreter {
-            symbols: HashMap::new(),
+            symbols: Environment::new()
         }
     }
 
@@ -65,7 +65,7 @@ impl Visitor<Result<Literal, InterpErr>> for Interpreter {
             Assignment(id, boxed_expr) => {
                 info!("Inserting symbol {} into table", id);
                 let val = self.visit_expr(boxed_expr)?;
-                self.symbols.insert(id.clone(), val.clone());
+                self.symbols.define(id.clone(), val.clone());
                 Ok(val)
             },
             LiteralExpr(lit) => Ok(lit.clone()),
@@ -197,6 +197,11 @@ impl Visitor<Result<Literal, InterpErr>> for Interpreter {
                 println!("LOX: {:?}", self.visit_expr(e));
                 Ok(Nil)
             },
+            VarDec(tok, exp) => {
+                let val = self.visit_expr(exp)?;
+                self.symbols.define(tok.lexeme.clone(), val);
+                Ok(Nil)
+            }
         }
     }
 }
@@ -252,7 +257,7 @@ mod tests {
     #[test]
     fn test_one_plus_two() {
         let mut interpreter = Interpreter{
-            symbols: HashMap::new(),
+            symbols: Environment::new(),
         };
 
         let val = interpreter.visit_expr(&Binary(
@@ -273,7 +278,7 @@ mod tests {
     #[test]
     fn test_two_strings() {
         let mut interpreter = Interpreter{
-            symbols: HashMap::new(),
+            symbols: Environment::new(),
         };
 
         let val = interpreter.visit_expr(&Binary(
@@ -294,10 +299,10 @@ mod tests {
     #[test]
     fn test_var() {
         let mut interpreter = Interpreter{
-            symbols: HashMap::new(),
+            symbols: Environment::new(),
         };
 
-        interpreter.symbols.insert("a".to_string(), Number(1.0));
+        interpreter.symbols.define("a".to_string(), Number(1.0));
 
         let val = interpreter.visit_expr(
             &Identifier("a".to_string()),
@@ -310,7 +315,7 @@ mod tests {
     #[test]
     fn test_groupings() {
         let mut interpreter = Interpreter{
-            symbols: HashMap::new(),
+            symbols: Environment::new(),
         };
 
         let val = interpreter.visit_expr(&Binary(

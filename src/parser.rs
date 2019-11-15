@@ -53,23 +53,17 @@ impl<'a, 'b> Parser<'a, 'b> {
     }
 
     fn var_declaration(&mut self) -> Result<Statement, ParseError> {
-
         let name = self.consume(&IDENTIFIER, "Needed identifier after var")?
             .clone();
 
-        let n = name.lexeme.clone();
-
-
-        let mut initializer = Box::new(LiteralExpr(Nil));
+        let mut initializer = LiteralExpr(Nil);
         if self.matches_single(&EQUAL) {
-            initializer = Box::new(self.expression()?);
+            initializer = self.expression()?;
         }
 
         self.consume(&SEMICOLON, "Expected ';' after var decl")?;
-        return Ok(Statement::Expression(Assignment(n,  initializer)));
+        return Ok(Statement::VarDec(name,  initializer));
     }
-
-
 
     fn statement(&mut self) -> Result<Statement, ParseError> {
         if self.matches_single(&PRINT) {
@@ -93,12 +87,25 @@ impl<'a, 'b> Parser<'a, 'b> {
 
 
     fn expression(&mut self) -> Result<Expr, ParseError> {
+        self.assignment()
+    }
+
+    fn assignment(&mut self) -> Result<Expr, ParseError> {
         self.parse_binary_exprs(&vec!(
             BANG_EQUAL, EQUAL_EQUAL,
             GREATER, GREATER_EQUAL, LESS, LESS_EQUAL,
             PLUS, MINUS,
             STAR, SLASH
         ), 0)
+
+        // if self.matches_single(&EQUAL) {
+        //     let tok = self.previous();
+        //     let r_val = self.assignment()?;
+
+        //     match r_val {
+                
+        //     }
+        // }
     }
 
     fn parse_binary_exprs(&mut self, operands: &Vec<TokenType>, level: usize) -> Result<Expr, ParseError> {
@@ -404,7 +411,14 @@ mod tests {
         match &results[0] {
             Ok(e) => {
                 let var_id = "a".to_string();
-                assert_eq!(*e, Statement::Expression(Assignment(var_id, Box::new(LiteralExpr(Literal::Nil)))));
+                assert_eq!(*e, Statement::VarDec(
+                    Token {
+                        token_type: IDENTIFIER,
+                        lexeme: String::from("a"),
+                        literal: None,
+                        line: 1,
+                    },
+                    LiteralExpr(Literal::Nil)));
             },
             Err(_) => assert!(false),
         }

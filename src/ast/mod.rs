@@ -1,5 +1,4 @@
 pub mod expr;
-pub mod interp;
 pub mod printer;
 pub mod stmt;
 

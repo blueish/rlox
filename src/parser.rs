@@ -91,21 +91,30 @@ impl<'a, 'b> Parser<'a, 'b> {
     }
 
     fn assignment(&mut self) -> Result<Expr, ParseError> {
-        self.parse_binary_exprs(&vec!(
+        let mut expr = self.parse_binary_exprs(&vec!(
             BANG_EQUAL, EQUAL_EQUAL,
             GREATER, GREATER_EQUAL, LESS, LESS_EQUAL,
             PLUS, MINUS,
             STAR, SLASH
-        ), 0)
+        ), 0)?;
 
-        // if self.matches_single(&EQUAL) {
-        //     let tok = self.previous();
-        //     let r_val = self.assignment()?;
+        if self.matches_single(&EQUAL) {
+            let tok = self.previous().unwrap().line;
+            let r_val = self.assignment()?;
 
-        //     match r_val {
-                
-        //     }
-        // }
+            match expr {
+                Identifier(name) => {
+                    expr = Assignment(name, Box::new(r_val));
+                },
+                _ => return Err(ParseError {
+                    line: tok,
+                    lexeme: "=".to_string(),
+                    message: "Invalid assignment target".to_string(),
+                }),
+            }
+        }
+
+        return Ok(expr);
     }
 
     fn parse_binary_exprs(&mut self, operands: &Vec<TokenType>, level: usize) -> Result<Expr, ParseError> {
@@ -377,7 +386,6 @@ mod tests {
 
     #[test]
     fn var() {
-        init();
         let er = &mut ErrorReporter{ had_errors: false };
         let results = Parser::parse(&vec!(
             Token {
@@ -410,7 +418,6 @@ mod tests {
 
         match &results[0] {
             Ok(e) => {
-                let var_id = "a".to_string();
                 assert_eq!(*e, Statement::VarDec(
                     Token {
                         token_type: IDENTIFIER,
@@ -419,6 +426,55 @@ mod tests {
                         line: 1,
                     },
                     LiteralExpr(Literal::Nil)));
+            },
+            Err(_) => assert!(false),
+        }
+    }
+
+    #[test]
+    fn var_assignment() {
+        let er = &mut ErrorReporter{ had_errors: false };
+        let results = Parser::parse(&vec!(
+            Token {
+                token_type: IDENTIFIER,
+                lexeme: String::from("a"),
+                literal: None,
+                line: 1,
+            },
+            Token {
+                token_type: EQUAL,
+                lexeme: String::from("="),
+                literal: None,
+                line: 1,
+            },
+            Token {
+                token_type: NUMBER,
+                lexeme: String::from("1"),
+                literal: Some(Number(1.0)),
+                line: 1,
+            },
+            Token {
+                token_type: SEMICOLON,
+                lexeme: String::from(";"),
+                literal: None,
+                line: 1,
+            },
+            Token {
+                token_type: EOF,
+                lexeme: String::from(""),
+                literal: None,
+                line: 1,
+            },
+        ), er);
+
+        assert_eq!(results.len(), 1);
+
+        match &results[0] {
+            Ok(e) => {
+                assert_eq!(*e, Statement::Expression(Assignment(
+                    String::from("a"),
+                    Box::new(LiteralExpr(Number(1.0)))))
+                );
             },
             Err(_) => assert!(false),
         }

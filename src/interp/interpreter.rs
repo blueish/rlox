@@ -16,6 +16,14 @@ pub struct InterpErr {
     msg: String,
 }
 
+impl From<String> for InterpErr {
+    fn from(error: String) -> Self {
+        InterpErr {
+            msg: error,
+        }
+    }
+}
+
 pub struct Interpreter {
     symbols: Environment,
 }
@@ -63,9 +71,12 @@ impl Visitor<Result<Literal, InterpErr>> for Interpreter {
                 },
             },
             Assignment(id, boxed_expr) => {
-                info!("Inserting symbol {} into table", id);
                 let val = self.visit_expr(boxed_expr)?;
-                self.symbols.define(id.clone(), val.clone());
+
+                self.symbols.assign(&id, val.clone())?;
+
+                info!("Inserted symbol {} into table", id);
+
                 Ok(val)
             },
             LiteralExpr(lit) => Ok(lit.clone()),

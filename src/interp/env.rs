@@ -21,4 +21,12 @@ impl Environment {
         self.values.get(name)
     }
 
+    pub fn assign(&mut self, name: &String, val: Literal) -> Result<(), String> {
+        if self.get(name).is_some() {
+            self.values.insert(name.clone(), val);
+            return Ok(());
+        }
+
+        Err(format!("Undefined variable {}", name))
+    }
 }

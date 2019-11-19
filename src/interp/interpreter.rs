@@ -1,5 +1,3 @@
-use log::{info};
-
 use crate::interp::env::Environment;
 
 use crate::ast::Visitor;
@@ -25,13 +23,13 @@ impl From<String> for InterpErr {
 }
 
 pub struct Interpreter {
-    symbols: Environment,
+    environment: Environment,
 }
 
 impl Interpreter {
     pub fn new() -> Interpreter {
         Interpreter {
-            symbols: Environment::new()
+            environment: Environment::new(None)
         }
     }
 
@@ -62,7 +60,7 @@ impl Visitor<Result<Literal, InterpErr>> for Interpreter {
     fn visit_expr(&mut self, e: &Expr) -> Result<Literal, InterpErr> {
         use crate::token::TokenType::*;
         match e {
-            Identifier(id) => match self.symbols.get(id) {
+            Identifier(id) => match self.environment.get(id) {
                 Some(val) => Ok(val.clone()),
                 None => {
                     Err(InterpErr {
@@ -72,10 +70,7 @@ impl Visitor<Result<Literal, InterpErr>> for Interpreter {
             },
             Assignment(id, boxed_expr) => {
                 let val = self.visit_expr(boxed_expr)?;
-
-                self.symbols.assign(&id, val.clone())?;
-
-                info!("Inserted symbol {} into table", id);
+                self.environment.assign(&id, val.clone())?;
 
                 Ok(val)
             },
@@ -205,12 +200,33 @@ impl Visitor<Result<Literal, InterpErr>> for Interpreter {
         match s {
             Expression(e) => self.visit_expr(e),
             Print(e) => {
-                println!("LOX: {:?}", self.visit_expr(e));
+                println!("{}", self.visit_expr(e)?);
                 Ok(Nil)
             },
             VarDec(tok, exp) => {
                 let val = self.visit_expr(exp)?;
-                self.symbols.define(tok.lexeme.clone(), val);
+                self.environment.define(tok.lexeme.clone(), val);
+                Ok(Nil)
+            },
+            Block(stmts) => {
+                let old_env = self.environment.clone();
+                self.environment = Environment::new(Some(Box::new(old_env)));
+                for stmt in stmts {
+                    self.visit_stmt(stmt)?;
+                }
+
+
+
+                match &self.environment.enclosing_scope {
+                    Some(boxed_env) => {
+                        let env = *boxed_env.clone();
+                        std::mem::replace(&mut self.environment, env);
+                    },
+                    None => return Err(InterpErr {
+                        msg: "Attempted to return from a block without an enclosing environment.".to_string(),
+                    }),
+                }
+
                 Ok(Nil)
             }
         }
@@ -268,7 +284,7 @@ mod tests {
     #[test]
     fn test_one_plus_two() {
         let mut interpreter = Interpreter{
-            symbols: Environment::new(),
+            environment: Environment::new(None),
         };
 
         let val = interpreter.visit_expr(&Binary(
@@ -289,7 +305,7 @@ mod tests {
     #[test]
     fn test_two_strings() {
         let mut interpreter = Interpreter{
-            symbols: Environment::new(),
+            environment: Environment::new(None),
         };
 
         let val = interpreter.visit_expr(&Binary(
@@ -310,10 +326,10 @@ mod tests {
     #[test]
     fn test_var() {
         let mut interpreter = Interpreter{
-            symbols: Environment::new(),
+            environment: Environment::new(None),
         };
 
-        interpreter.symbols.define("a".to_string(), Number(1.0));
+        interpreter.environment.define("a".to_string(), Number(1.0));
 
         let val = interpreter.visit_expr(
             &Identifier("a".to_string()),
@@ -326,7 +342,7 @@ mod tests {
     #[test]
     fn test_groupings() {
         let mut interpreter = Interpreter{
-            symbols: Environment::new(),
+            environment: Environment::new(None),
         };
 
         let val = interpreter.visit_expr(&Binary(

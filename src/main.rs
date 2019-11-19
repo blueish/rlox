@@ -49,7 +49,12 @@ fn run_file(filename: String) -> Result<(), String> {
     let error_reporter: &mut errors::ErrorReporter = &mut errors::ErrorReporter{ had_errors: false };
 
     match file {
-        Ok(s) => run(s, interpreter,  error_reporter),
+        Ok(s) => {
+            match run(s, interpreter,  error_reporter) {
+                Ok(_) => Ok(()),
+                Err(e) => Err(e.to_string()),
+            }
+        },
         Err(e) => Err(e.to_string()),
     }
 }
@@ -71,15 +76,15 @@ fn run_prompt() -> Result<(), String> {
         let error_reporter: &mut errors::ErrorReporter = &mut errors::ErrorReporter{ had_errors: false };
 
         match run(command.to_string(), interpreter, error_reporter) {
-            Ok(()) => (),
+            Ok(result) => println!("{:?}", result),
             Err(e) => {
-                error!("Error executing lox code: {}", e);
+                println!("Error executing lox code: {}", e);
             }
         };
     }
 }
 
-fn run(input: String, interpreter: &mut interp::interpreter::Interpreter, error_reporter: &mut errors::ErrorReporter) -> Result<(), String> {
+fn run(input: String, interpreter: &mut interp::interpreter::Interpreter, error_reporter: &mut errors::ErrorReporter) -> Result<Option<token::Literal>, String> {
     let mut time = Instant::now();
     let mut scanner: scanner::Scanner = scanner::Scanner::new(&input, error_reporter);
 
@@ -118,8 +123,7 @@ fn run(input: String, interpreter: &mut interp::interpreter::Interpreter, error_
 
     match res {
         Ok(e) => {
-            println!("Result: {:?}", e);
-            Ok(())
+            Ok(e)
         },
         Err(e) => Err(format!("Interp errors: {:?}", e)),
     }

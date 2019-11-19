@@ -14,6 +14,22 @@ pub struct ParseError {
     message: String,
 }
 
+impl From<Vec<ParseError>> for ParseError {
+    fn from(errors: Vec<ParseError>) -> Self {
+        let (line, msg) = errors.iter()
+            .fold((0, "Errors in block:\n\t".to_string()),|acc, e| match acc {
+                (0, m) => (e.line, format!("{}\n\t{}", m, e.message)),
+                (n, m) => (n, format!("{}\n\t{}", m, e.message)),
+            });
+
+        ParseError {
+            line: line,
+            lexeme: "<block value>".to_string(),
+            message: msg,
+        }
+    }
+}
+
 pub struct Parser<'a, 'b> {
     tokens: &'a Vec<Token>,
     current: usize,
@@ -38,9 +54,15 @@ impl<'a, 'b> Parser<'a, 'b> {
     }
 
     fn declaration(&mut self) -> Result<Statement, ParseError> {
-        let res = match self.matches_single(&VAR) {
-            true => self.var_declaration(),
-            false => self.statement(),
+        let res = match (self.matches_single(&VAR), self.matches_single(&LEFT_BRACE)) {
+            (false, false) => self.statement(),
+            (false, true) => self.block_statement(),
+            (true, false) => self.var_declaration(),
+            (true, true) => Err(ParseError {
+                line: self.peek().line,
+                lexeme: "var {".to_string(),
+                message: "var { is not valid syntax".to_string(),
+            })
         };
 
         match res {
@@ -49,6 +71,25 @@ impl<'a, 'b> Parser<'a, 'b> {
                 self.synchronize();
                 Err(e)
             }
+        }
+    }
+
+    fn block_statement(&mut self) -> Result<Statement, ParseError> {
+        let mut statements: Vec<Statement> = Vec::new();
+        let mut errors: Vec<ParseError> = Vec::new();
+
+        while !self.check(&RIGHT_BRACE) && !self.is_at_end() {
+            match self.declaration() {
+                Ok(s) => statements.push(s),
+                Err(e) => errors.push(e),
+            }
+        }
+
+        self.consume(&RIGHT_BRACE, "Expected '}' after block")?;
+
+        match errors.len() {
+            0 => Ok(Statement::Block(statements)),
+            _ => Err(ParseError::from(errors)),
         }
     }
 
@@ -220,7 +261,7 @@ impl<'a, 'b> Parser<'a, 'b> {
     fn synchronize(&mut self) {
         self.advance();
 
-        while self.is_at_end() {
+        while !self.is_at_end() {
             match self.previous() {
                 Some(tok) => {
                     if tok.token_type == SEMICOLON {
@@ -430,7 +471,6 @@ mod tests {
             Err(_) => assert!(false),
         }
     }
-
     #[test]
     fn var_assignment() {
         let er = &mut ErrorReporter{ had_errors: false };
@@ -480,6 +520,66 @@ mod tests {
         }
     }
 
+    #[test]
+    fn block_statements() {
+        let er = &mut ErrorReporter{ had_errors: false };
+        let results = Parser::parse(&vec!(
+            Token {
+                token_type: LEFT_BRACE,
+                lexeme: String::from("{"),
+                literal: None,
+                line: 1,
+            },
+            Token {
+                token_type: IDENTIFIER,
+                lexeme: String::from("a"),
+                literal: None,
+                line: 1,
+            },
+            Token {
+                token_type: EQUAL,
+                lexeme: String::from("="),
+                literal: None,
+                line: 1,
+            },
+            Token {
+                token_type: NUMBER,
+                lexeme: String::from("1"),
+                literal: Some(Number(1.0)),
+                line: 1,
+            },
+            Token {
+                token_type: SEMICOLON,
+                lexeme: String::from(";"),
+                literal: None,
+                line: 1,
+            },
+            Token {
+                token_type: RIGHT_BRACE,
+                lexeme: String::from("}"),
+                literal: None,
+                line: 1,
+            },
+            Token {
+                token_type: EOF,
+                lexeme: String::from(""),
+                literal: None,
+                line: 1,
+            },
+        ), er);
+
+        assert_eq!(results.len(), 1);
+
+        match &results[0] {
+            Ok(e) => {
+                assert_eq!(*e, Statement::Block(vec!(Statement::Expression(Assignment(
+                    String::from("a"),
+                    Box::new(LiteralExpr(Number(1.0)))))
+                )));
+            },
+            Err(_) => assert!(false),
+        }
+    }
 
     #[test]
     fn binary_exprs() {

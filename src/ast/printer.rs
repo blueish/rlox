@@ -11,7 +11,7 @@ pub struct PrettyPrinter {}
 impl PrettyPrinter {
     pub fn print_ast(statements: &Vec<Result<Statement, ParseError>>) -> String {
         let mut pp = PrettyPrinter{};
-        let mut res = "".to_string();
+        let mut res = "AST:\n".to_string();
 
         for result in statements {
             match result {
@@ -24,7 +24,7 @@ impl PrettyPrinter {
             };
         }
 
-        return res;
+        return format!("{}}}", res);
     }
 }
 
@@ -34,6 +34,14 @@ impl Visitor<String> for PrettyPrinter {
             Expression(e) => self.visit_expr(e),
             Print(e) => format!("PRINT {}", self.visit_expr(e)),
             VarDec(t, e) => format!("VARDEC {} -> {}", t.lexeme, self.visit_expr(e)),
+            Block(stmts) => {
+                let mut res = "BLOCK {\n".to_string();
+                for stmt in stmts {
+                    res.push_str(&format!("\t{}\n", self.visit_stmt(stmt)));
+                }
+
+                format!("{}}}", res)
+            },
         }
     }
 

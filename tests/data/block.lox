@@ -1,0 +1,6 @@
+var a = 1;
+{
+  var b = 10;
+  a = b + 1;
+}
+print a;

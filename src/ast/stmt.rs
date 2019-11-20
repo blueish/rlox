@@ -8,4 +8,5 @@ pub enum Statement {
     VarDec(Token, Expr),
     Block(Vec<Statement>),
     IfStmt(Expr, Box<Statement>, Option<Box<Statement>>),
+    WhileStmt(Expr, Box<Statement>),
 }

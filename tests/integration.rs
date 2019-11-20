@@ -30,6 +30,21 @@ mod integration {
         run("short_circuit")
     }
 
+    #[test]
+    fn run_while() {
+        run("while")
+    }
+
+    #[test]
+    fn run_for() {
+        run("for")
+    }
+
+    #[test]
+    fn run_fib() {
+        run("fib")
+    }
+
     fn run(file_prefix: &str) {
         assert_eq!(run_file(file_prefix), file_contents(file_prefix));
     }

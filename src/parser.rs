@@ -81,13 +81,22 @@ impl<'a, 'b> Parser<'a, 'b> {
         self.consume(&SEMICOLON, "Expected ';' after var decl")?;
         return Ok(Statement::VarDec(name,  initializer));
     }
+}
 
+// All Statements
+impl<'a, 'b> Parser<'a, 'b> {
     fn statement(&mut self) -> Result<Statement, ParseError> {
         if self.matches_single(&PRINT) {
             return self.print_statement();
         }
+        if self.matches_single(&FOR) {
+            return self.for_statement();
+        }
         if self.matches_single(&IF) {
             return self.if_statement();
+        }
+        if self.matches_single(&WHILE) {
+            return self.while_statement();
         }
         if self.matches_single(&LEFT_BRACE) {
             return self.block_statement();
@@ -102,6 +111,58 @@ impl<'a, 'b> Parser<'a, 'b> {
         return Ok(Statement::Print(value));
     }
 
+    fn for_statement(&mut self) -> Result<Statement, ParseError> {
+        self.consume(&LEFT_PAREN, "Expect '(' after 'for'.")?;
+
+        let mut initializer = None;
+        if self.matches_single(&SEMICOLON) {
+            // Empty initializer
+        } else if self.matches_single(&VAR) {
+            initializer = Some(self.var_declaration()?);
+        } else {
+            initializer = Some(self.expression_statement()?);
+        }
+
+
+        let condition = if self.matches_single(&SEMICOLON) {
+            LiteralExpr(Literal::True)
+        } else {
+            let condition = self.expression()?;
+            self.consume(&SEMICOLON, "Expect two semicolons in for loop")?;
+
+            condition
+        };
+
+        let mut increment = None;
+        if !self.matches_single(&RIGHT_PAREN) {
+            increment = Some(Statement::Expression(self.expression()?));
+            self.consume(&RIGHT_PAREN, "Expected ')' after increment in for loop")?;
+        }
+
+        let mut body = self.statement()?;
+
+        // Desugaring step 1: extract out the increment (if any), and put at bottom of loop
+        if increment.is_some() {
+            body = Statement::Block(vec!(
+                body,
+                increment.unwrap()
+            ));
+        }
+
+        // Desugaring step 2: condition becomes the condition for a while loop
+        let while_stmt = Statement::WhileStmt(condition, Box::new(body));
+
+        // Desugaring step 3: extract out the initializer (if any), and put before loop
+        if initializer.is_some() {
+            return Ok(Statement::Block(vec!(
+                initializer.unwrap(),
+                while_stmt
+            )));
+        }
+
+        return Ok(while_stmt);
+    }
+
     fn if_statement(&mut self) -> Result<Statement, ParseError> {
         self.consume(&LEFT_PAREN, "Expect '(' after 'if'.")?;
         let cond = self.expression()?;
@@ -114,6 +175,16 @@ impl<'a, 'b> Parser<'a, 'b> {
         }
 
         return Ok(Statement::IfStmt(cond, Box::new(then_stmt), else_stmt));
+    }
+
+    fn while_statement(&mut self) -> Result<Statement, ParseError> {
+        self.consume(&LEFT_PAREN, "Expect '(' after 'while'.")?;
+        let cond = self.expression()?;
+        self.consume(&RIGHT_PAREN, "Expect ')' after 'while'.")?;
+
+        let body_stmt = self.statement()?;
+
+        return Ok(Statement::WhileStmt(cond, Box::new(body_stmt)));
     }
 
     fn block_statement(&mut self) -> Result<Statement, ParseError> {
@@ -141,7 +212,10 @@ impl<'a, 'b> Parser<'a, 'b> {
         return Ok(Statement::Expression(value));
     }
 
+}
 
+// All expressions
+impl<'a, 'b> Parser<'a, 'b> {
     fn expression(&mut self) -> Result<Expr, ParseError> {
         self.assignment()
     }

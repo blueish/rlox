@@ -85,7 +85,7 @@ impl Visitor<Result<Literal, InterpErr>> for Interpreter {
                             msg: format!("Value {:?} not allowed for unary minus", right)
                         }),
                     },
-                    BANG => Ok(negate(is_truthy(&right))),
+                    BANG => Ok(negate(is_truthy_lit(&right))),
                     _ => Err(InterpErr{
                         msg: format!("Token {:?} not allowed for unary expression", tok),
                     }),
@@ -95,7 +95,7 @@ impl Visitor<Result<Literal, InterpErr>> for Interpreter {
                 // AND and OR operators short circuit, so handle them separately
                 if tok.token_type == AND {
                     let left = &self.visit_expr(left)?;
-                    if is_truthy(left) == Literal::True {
+                    if is_truthy(left) {
                         return Ok(self.visit_expr(right)?);
                     }
 
@@ -104,7 +104,7 @@ impl Visitor<Result<Literal, InterpErr>> for Interpreter {
 
                 if tok.token_type == OR {
                     let left = &self.visit_expr(left)?;
-                    if is_truthy(left) == Literal::True {
+                    if is_truthy(left) {
                         return Ok(left.clone());
                     }
 
@@ -247,15 +247,22 @@ impl Visitor<Result<Literal, InterpErr>> for Interpreter {
                 Ok(Nil)
             },
             IfStmt(cond_expr, then_expr, else_expr) => {
-                match is_truthy(&self.visit_expr(cond_expr)?) {
+                match is_truthy_lit(&self.visit_expr(cond_expr)?) {
                     Literal::True => self.visit_stmt(then_expr),
                     Literal::False => match else_expr {
                         Some(boxed_else) => self.visit_stmt(boxed_else),
                         None => Ok(Nil)
                     },
-                    _ => unreachable!(), // Impossible due to is_truthy returning only lit t/f
+                    _ => unreachable!(), // Impossible due to is_truthy_lit returning only lit t/f
                 }
-            }
+            },
+            WhileStmt(cond_expr, stmt_body) => {
+                while is_truthy(&self.visit_expr(cond_expr)?) {
+                    self.visit_stmt(stmt_body)?;
+                }
+
+                Ok(Nil)
+            },
         }
     }
 }
@@ -283,7 +290,11 @@ fn unwrap_num_lits(a: &Literal, b: &Literal) -> Option<(f64, f64)> {
     }
 }
 
-fn is_truthy(lit: &Literal) -> Literal {
+fn is_truthy(lit: &Literal) -> bool {
+    is_truthy_lit(lit) == Literal::True
+}
+
+fn is_truthy_lit(lit: &Literal) -> Literal {
     match lit {
         StringLit(_) => Literal::True,
         Number(_) => Literal::True,

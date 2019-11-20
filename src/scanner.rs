@@ -253,10 +253,8 @@ mod tests {
         let mut errs = errors::ErrorReporter{ had_errors: false };
         let input = "1 + 2;".to_string();
         let mut scanner = Scanner::new(&input, &mut errs);
-        let res = scanner
-            .scan_tokens();
+        scanner.scan_tokens();
 
-        // assert!(res, false);
         assert_eq!(scanner.tokens(), vec!(
             Token {
                 token_type: NUMBER,
@@ -296,10 +294,8 @@ mod tests {
         let mut errs = errors::ErrorReporter{ had_errors: false };
         let input = "var a;".to_string();
         let mut scanner = Scanner::new(&input, &mut errs);
-        let res = scanner
-            .scan_tokens();
+        scanner.scan_tokens();
 
-        // assert!(res, false);
         assert_eq!(scanner.tokens(), vec!(
             Token {
                 token_type: VAR,
@@ -333,10 +329,8 @@ mod tests {
         let mut errs = errors::ErrorReporter{ had_errors: false };
         let input = "var a = 12;".to_string();
         let mut scanner = Scanner::new(&input, &mut errs);
-        let res = scanner
-            .scan_tokens();
+        scanner.scan_tokens();
 
-        // assert!(res, false);
         assert_eq!(scanner.tokens(), vec!(
             Token {
                 token_type: VAR,

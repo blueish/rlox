@@ -22,8 +22,8 @@ mod interp;
 
 fn main() {
     env_logger::from_env(Env::default()
-                         .default_filter_or("debug")
-                         // .default_filter_or("info")
+                         .default_filter_or("info")
+                         // .default_filter_or("debug")
     ).init();
 
     let args: Vec<String> = env::args().collect();

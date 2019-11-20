@@ -42,13 +42,20 @@ impl Visitor<String> for PrettyPrinter {
 
                 format!("{}}}", res)
             },
-            IfStmt(c, t, e) => format!("IF {}\nTHEN -> {}\nELSE -> {}",
-                                       self.visit_expr(c),
-                                       self.visit_stmt(t),
-                                       match e {
-                                           Some(else_clause) => self.visit_stmt(else_clause),
-                                           None => "<no else clause>".to_string(),
-                                       }),
+            IfStmt(c, t, e) => format!(
+                "IF {}\nTHEN -> {}\nELSE -> {}",
+                self.visit_expr(c),
+                self.visit_stmt(t),
+                match e {
+                    Some(else_clause) => self.visit_stmt(else_clause),
+                    None => "<no else clause>".to_string(),
+                }
+            ),
+            WhileStmt(c, b) => format!(
+                "WHILE ({}) -> {}",
+                self.visit_expr(c),
+                self.visit_stmt(b),
+            )
         }
     }
 

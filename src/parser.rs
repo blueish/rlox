@@ -54,15 +54,10 @@ impl<'a, 'b> Parser<'a, 'b> {
     }
 
     fn declaration(&mut self) -> Result<Statement, ParseError> {
-        let res = match (self.matches_single(&VAR), self.matches_single(&LEFT_BRACE)) {
-            (false, false) => self.statement(),
-            (false, true) => self.block_statement(),
-            (true, false) => self.var_declaration(),
-            (true, true) => Err(ParseError {
-                line: self.peek().line,
-                lexeme: "var {".to_string(),
-                message: "var { is not valid syntax".to_string(),
-            })
+        let res = if self.matches_single(&VAR) {
+            self.var_declaration()
+        } else {
+            self.statement()
         };
 
         match res {
@@ -72,6 +67,53 @@ impl<'a, 'b> Parser<'a, 'b> {
                 Err(e)
             }
         }
+    }
+
+    fn var_declaration(&mut self) -> Result<Statement, ParseError> {
+        let name = self.consume(&IDENTIFIER, "Needed identifier after var")?
+            .clone();
+
+        let mut initializer = LiteralExpr(Nil);
+        if self.matches_single(&EQUAL) {
+            initializer = self.expression()?;
+        }
+
+        self.consume(&SEMICOLON, "Expected ';' after var decl")?;
+        return Ok(Statement::VarDec(name,  initializer));
+    }
+
+    fn statement(&mut self) -> Result<Statement, ParseError> {
+        if self.matches_single(&PRINT) {
+            return self.print_statement();
+        }
+        if self.matches_single(&IF) {
+            return self.if_statement();
+        }
+        if self.matches_single(&LEFT_BRACE) {
+            return self.block_statement();
+        }
+
+        return self.expression_statement();
+    }
+
+    fn print_statement(&mut self) -> Result<Statement, ParseError> {
+        let value = self.expression()?;
+        self.consume(&SEMICOLON, "Expect ; after value.")?;
+        return Ok(Statement::Print(value));
+    }
+
+    fn if_statement(&mut self) -> Result<Statement, ParseError> {
+        self.consume(&LEFT_PAREN, "Expect '(' after 'if'.")?;
+        let cond = self.expression()?;
+        self.consume(&RIGHT_PAREN, "Expect ')' after 'if'.")?;
+
+        let then_stmt = self.statement()?;
+        let mut else_stmt = None;
+        if self.matches_single(&ELSE) {
+            else_stmt = Some(Box::new(self.statement()?));
+        }
+
+        return Ok(Statement::IfStmt(cond, Box::new(then_stmt), else_stmt));
     }
 
     fn block_statement(&mut self) -> Result<Statement, ParseError> {
@@ -93,33 +135,6 @@ impl<'a, 'b> Parser<'a, 'b> {
         }
     }
 
-    fn var_declaration(&mut self) -> Result<Statement, ParseError> {
-        let name = self.consume(&IDENTIFIER, "Needed identifier after var")?
-            .clone();
-
-        let mut initializer = LiteralExpr(Nil);
-        if self.matches_single(&EQUAL) {
-            initializer = self.expression()?;
-        }
-
-        self.consume(&SEMICOLON, "Expected ';' after var decl")?;
-        return Ok(Statement::VarDec(name,  initializer));
-    }
-
-    fn statement(&mut self) -> Result<Statement, ParseError> {
-        if self.matches_single(&PRINT) {
-            return self.print_statement();
-        }
-
-        return self.expression_statement();
-    }
-
-    fn print_statement(&mut self) -> Result<Statement, ParseError> {
-        let value = self.expression()?;
-        self.consume(&SEMICOLON, "Expect ; after value.")?;
-        return Ok(Statement::Print(value));
-    }
-
     fn expression_statement(&mut self) -> Result<Statement, ParseError> {
         let value = self.expression()?;
         self.consume(&SEMICOLON, "Expect ; after value.")?;
@@ -133,6 +148,7 @@ impl<'a, 'b> Parser<'a, 'b> {
 
     fn assignment(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.parse_binary_exprs(&vec!(
+            AND, OR,
             BANG_EQUAL, EQUAL_EQUAL,
             GREATER, GREATER_EQUAL, LESS, LESS_EQUAL,
             PLUS, MINUS,

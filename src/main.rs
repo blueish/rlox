@@ -2,7 +2,7 @@
 extern crate lazy_static;
 extern crate log;
 
-use log::{info, error};
+use log::{info, error, debug};
 use env_logger::Env;
 
 use std::fs;
@@ -22,7 +22,8 @@ mod interp;
 
 fn main() {
     env_logger::from_env(Env::default()
-            .default_filter_or("info")
+                         .default_filter_or("debug")
+                         // .default_filter_or("info")
     ).init();
 
     let args: Vec<String> = env::args().collect();
@@ -100,7 +101,7 @@ fn run(input: String, interpreter: &mut interp::interpreter::Interpreter, error_
     let statements = parser::Parser::parse(&tokens, error_reporter);
     info!("Parsing finished in {}micros", time.elapsed().as_micros());
 
-    info!("ast: {}", ast::printer::PrettyPrinter::print_ast(&statements));
+    debug!("ast: {}", ast::printer::PrettyPrinter::print_ast(&statements));
 
     let mut errs = Vec::new();
     let mut valid_statements = Vec::new();

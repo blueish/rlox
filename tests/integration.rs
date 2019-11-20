@@ -20,6 +20,16 @@ mod integration {
         run("block")
     }
 
+    #[test]
+    fn run_if() {
+        run("if")
+    }
+
+    #[test]
+    fn run_short_circuit() {
+        run("short_circuit")
+    }
+
     fn run(file_prefix: &str) {
         assert_eq!(run_file(file_prefix), file_contents(file_prefix));
     }

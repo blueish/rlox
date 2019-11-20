@@ -1,0 +1,10 @@
+if (true or uninitialized) {
+   print "1";
+} else {
+   print "2";
+}
+if (false and uninitialized) {
+   print "3";
+} else {
+   print "4";
+}

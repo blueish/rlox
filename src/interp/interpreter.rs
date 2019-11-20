@@ -92,6 +92,25 @@ impl Visitor<Result<Literal, InterpErr>> for Interpreter {
                 }
             },
             Binary(tok, left, right) => {
+                // AND and OR operators short circuit, so handle them separately
+                if tok.token_type == AND {
+                    let left = &self.visit_expr(left)?;
+                    if is_truthy(left) == Literal::True {
+                        return Ok(self.visit_expr(right)?);
+                    }
+
+                    return Ok(left.clone());
+                }
+
+                if tok.token_type == OR {
+                    let left = &self.visit_expr(left)?;
+                    if is_truthy(left) == Literal::True {
+                        return Ok(left.clone());
+                    }
+
+                    return Ok(self.visit_expr(right)?);
+                }
+
                 let left = &self.visit_expr(left)?;
                 let right = &self.visit_expr(right)?;
                 match tok.token_type {
@@ -215,8 +234,6 @@ impl Visitor<Result<Literal, InterpErr>> for Interpreter {
                     self.visit_stmt(stmt)?;
                 }
 
-
-
                 match &self.environment.enclosing_scope {
                     Some(boxed_env) => {
                         let env = *boxed_env.clone();
@@ -228,6 +245,16 @@ impl Visitor<Result<Literal, InterpErr>> for Interpreter {
                 }
 
                 Ok(Nil)
+            },
+            IfStmt(cond_expr, then_expr, else_expr) => {
+                match is_truthy(&self.visit_expr(cond_expr)?) {
+                    Literal::True => self.visit_stmt(then_expr),
+                    Literal::False => match else_expr {
+                        Some(boxed_else) => self.visit_stmt(boxed_else),
+                        None => Ok(Nil)
+                    },
+                    _ => unreachable!(), // Impossible due to is_truthy returning only lit t/f
+                }
             }
         }
     }
@@ -321,6 +348,46 @@ mod tests {
 
         assert!(val.is_ok());
         assert_eq!(val.unwrap(), StringLit("asdf".to_string()))
+    }
+
+    #[test]
+    fn test_negation_unary() {
+        let mut interpreter = Interpreter{
+            environment: Environment::new(None),
+        };
+
+        let val = interpreter.visit_expr(&Unary(
+            Token {
+                token_type: BANG,
+                lexeme: "!".to_string(),
+                literal: None,
+                line: 1,
+            },
+            Box::new(LiteralExpr(True)),
+        ));
+
+        assert!(val.is_ok());
+        assert_eq!(val.unwrap(), Literal::False)
+    }
+
+    #[test]
+    fn test_negative_unary() {
+        let mut interpreter = Interpreter{
+            environment: Environment::new(None),
+        };
+
+        let val = interpreter.visit_expr(&Unary(
+            Token {
+                token_type: MINUS,
+                lexeme: "-".to_string(),
+                literal: None,
+                line: 1,
+            },
+            Box::new(LiteralExpr(Number(2.0)))
+        ));
+
+        assert!(val.is_ok());
+        assert_eq!(val.unwrap(), Literal::Number(-2.0));
     }
 
     #[test]

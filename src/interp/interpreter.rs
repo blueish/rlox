@@ -1,13 +1,13 @@
 use crate::interp::env::Environment;
+use crate::value::Value;
 
 use crate::ast::Visitor;
 use crate::ast::expr::Expr;
 use crate::ast::stmt::Statement;
-use crate::ast::literals::Literal;
 
 use Statement::*;
 use Expr::*;
-use Literal::*;
+use Value::*;
 
 #[derive(Debug)]
 pub struct InterpErr {
@@ -33,7 +33,7 @@ impl Interpreter {
         }
     }
 
-    pub fn interp(&mut self, statements: Vec<Statement>) -> Result<Option<Literal>, Vec<InterpErr>> {
+    pub fn interp(&mut self, statements: Vec<Statement>) -> Result<Option<Value>, Vec<InterpErr>> {
         let mut last = None;
         let mut errs = Vec::new();
 
@@ -56,11 +56,11 @@ impl Interpreter {
     }
 }
 
-impl Visitor<Result<Literal, InterpErr>> for Interpreter {
-    fn visit_expr(&mut self, e: &Expr) -> Result<Literal, InterpErr> {
+impl Visitor<Result<Value, InterpErr>> for Interpreter {
+    fn visit_expr(&mut self, e: &Expr) -> Result<Value, InterpErr> {
         use crate::token::TokenType::*;
         match e {
-            Call(_, _, _) => Ok(Nil),
+            Call(_, _, _) => Ok(NilV),
             // Call(callee, line_num,  args) => {
             //     // Evaluate fun to a function declaration
             //     let f = self.visit_expr(callee)?;
@@ -85,7 +85,7 @@ impl Visitor<Result<Literal, InterpErr>> for Interpreter {
             //             // TODO: revert to previous env
 
             //             // TODO: ensure we don't have dynamic scoping, potentially give only an empty env?
-            //             Ok(Nil)
+            //             Ok(NilV)
             //         },
             //         _ => Err(InterpErr {
             //             msg: format!("Error calling function at line {}, ", line_num)
@@ -106,13 +106,13 @@ impl Visitor<Result<Literal, InterpErr>> for Interpreter {
 
                 Ok(val)
             },
-            LiteralExpr(lit) => Ok(lit.clone()),
+            ValueExpr(lit) => Ok(lit.clone()),
             Grouping(bx) => Ok(self.visit_expr(bx)?),
             Unary(tok, bx) => {
                 let right = self.visit_expr(bx)?;
                 match tok.token_type {
                     MINUS => match right {
-                        Literal::Number(n) => Ok(Literal::Number(-n)),
+                        Value::NumberV(n) => Ok(Value::NumberV(-n)),
                         _ => Err(InterpErr{
                             msg: format!("Value {:?} not allowed for unary minus", right)
                         }),
@@ -152,12 +152,12 @@ impl Visitor<Result<Literal, InterpErr>> for Interpreter {
                         match unwrap_num_lits(left, right) {
                             Some((l, r)) => {
                                 if l > r {
-                                    return Ok(True)
+                                    return Ok(TrueV)
                                 }
-                                return Ok(False)
+                                return Ok(FalseV)
                             },
                             None => Err(InterpErr {
-                                msg: format!("One of {}, {} was not a number", left, right),
+                                msg: format!("One of {:?}, {:?} was not a number", left, right),
                             }),
                         }
                     },
@@ -165,12 +165,12 @@ impl Visitor<Result<Literal, InterpErr>> for Interpreter {
                         match unwrap_num_lits(left, right) {
                             Some((l, r)) => {
                                 if l >= r {
-                                    return Ok(True)
+                                    return Ok(TrueV)
                                 }
-                                return Ok(False)
+                                return Ok(FalseV)
                             },
                             None => Err(InterpErr {
-                                msg: format!("One of {}, {} was not a number", left, right),
+                                msg: format!("One of {:#?}, {:#?} was not a number", left, right),
                             }),
                         }
                     },
@@ -178,12 +178,12 @@ impl Visitor<Result<Literal, InterpErr>> for Interpreter {
                         match unwrap_num_lits(left, right) {
                             Some((l, r)) => {
                                 if l < r {
-                                    return Ok(True)
+                                    return Ok(TrueV)
                                 }
-                                return Ok(False)
+                                return Ok(FalseV)
                             },
                             None => Err(InterpErr {
-                                msg: format!("One of {}, {} was not a number", left, right),
+                                msg: format!("One of {:#?}, {:#?} was not a number", left, right),
                             }),
                         }
                     },
@@ -191,51 +191,51 @@ impl Visitor<Result<Literal, InterpErr>> for Interpreter {
                         match unwrap_num_lits(left, right) {
                             Some((l, r)) => {
                                 if l <= r {
-                                    return Ok(True)
+                                    return Ok(TrueV)
                                 }
-                                return Ok(False)
+                                return Ok(FalseV)
                             },
                             None => Err(InterpErr {
-                                msg: format!("One of {}, {} was not a number", left, right),
+                                msg: format!("One of {:#?}, {:#?} was not a number", left, right),
                             }),
                         }
                     },
                     // Simple number ops
                     MINUS => {
                         match unwrap_num_lits(left, right) {
-                            Some((l, r)) => Ok(Number(l - r)),
+                            Some((l, r)) => Ok(NumberV(l - r)),
                             None => Err(InterpErr {
-                                msg: format!("One of {}, {} was not a number", left, right),
+                                msg: format!("One of {:#?}, {:#?} was not a number", left, right),
                             }),
                         }
                     },
                     STAR => {
                         match unwrap_num_lits(left, right) {
-                            Some((l, r)) => Ok(Number(l * r)),
+                            Some((l, r)) => Ok(NumberV(l * r)),
                             None => Err(InterpErr {
-                                msg: format!("One of {}, {} was not a number", left, right),
+                                msg: format!("One of {:#?}, {:#?} was not a number", left, right),
                             }),
                         }
                     },
                     SLASH => {
                         match unwrap_num_lits(left, right) {
-                            Some((l, r)) => Ok(Number(l / r)),
+                            Some((l, r)) => Ok(NumberV(l / r)),
                             None => Err(InterpErr {
-                                msg: format!("One of {}, {} was not a number", left, right),
+                                msg: format!("One of {:#?}, {:#?} was not a number", left, right),
                             }),
                         }
                     },
                     PLUS => {
                         // Special case: overloaded strings, concat them both
                         match (left, right) {
-                            (Number(a), Number(b)) => Ok(Number(a + b)),
-                            (StringLit(s), StringLit(s2)) => {
+                            (NumberV(a), NumberV(b)) => Ok(NumberV(a + b)),
+                            (StringV(s), StringV(s2)) => {
                                 let mut res = s.clone();
                                 res.push_str(s2);
-                                Ok(StringLit(res))
+                                Ok(StringV(res))
                             },
                             _ =>  Err(InterpErr {
-                                msg: format!("One of {}, {} was not a number", left, right),
+                                msg: format!("One of {:#?}, {:#?} was not a number", left, right),
                             }),
                         }
                     },
@@ -247,17 +247,17 @@ impl Visitor<Result<Literal, InterpErr>> for Interpreter {
         }
     }
 
-    fn visit_stmt(&mut self, s: &Statement) -> Result<Literal, InterpErr> {
+    fn visit_stmt(&mut self, s: &Statement) -> Result<Value, InterpErr> {
         match s {
             Expression(e) => self.visit_expr(e),
             Print(e) => {
                 println!("{}", self.visit_expr(e)?);
-                Ok(Nil)
+                Ok(NilV)
             },
             VarDec(tok, exp) => {
                 let val = self.visit_expr(exp)?;
                 self.environment.define(tok.lexeme.clone(), val);
-                Ok(Nil)
+                Ok(NilV)
             },
             Block(stmts) => {
                 let old_env = self.environment.clone();
@@ -276,14 +276,14 @@ impl Visitor<Result<Literal, InterpErr>> for Interpreter {
                     }),
                 }
 
-                Ok(Nil)
+                Ok(NilV)
             },
             IfStmt(cond_expr, then_expr, else_expr) => {
                 match is_truthy_lit(&self.visit_expr(cond_expr)?) {
-                    Literal::True => self.visit_stmt(then_expr),
-                    Literal::False => match else_expr {
+                    Value::TrueV => self.visit_stmt(then_expr),
+                    Value::FalseV => match else_expr {
                         Some(boxed_else) => self.visit_stmt(boxed_else),
-                        None => Ok(Nil)
+                        None => Ok(NilV)
                     },
                     _ => unreachable!(), // Impossible due to is_truthy_lit returning only lit t/f
                 }
@@ -293,28 +293,28 @@ impl Visitor<Result<Literal, InterpErr>> for Interpreter {
                     self.visit_stmt(stmt_body)?;
                 }
 
-                Ok(Nil)
+                Ok(NilV)
             },
         }
     }
 }
 
-fn are_equal(a: &Literal, b: &Literal) -> Literal {
+fn are_equal(a: &Value, b: &Value) -> Value {
     match (a, b) {
-        (StringLit(ref s1), StringLit(ref s2)) if s1 == s2 => Literal::True,
-        (Number(n), Number(m)) if n == m => Literal::True,
-        (True, True) => Literal::True,
-        (False, True) => Literal::True,
-        (Nil, Nil) => Literal::True,
-        _ => Literal::False,
+        (StringV(ref s1), StringV(ref s2)) if s1 == s2 => Value::TrueV,
+        (NumberV(n), NumberV(m)) if n == m => Value::TrueV,
+        (TrueV, TrueV) => Value::TrueV,
+        (FalseV, TrueV) => Value::TrueV,
+        (NilV, NilV) => Value::TrueV,
+        _ => Value::FalseV,
     }
 }
 
-fn unwrap_num_lits(a: &Literal, b: &Literal) -> Option<(f64, f64)> {
+fn unwrap_num_lits(a: &Value, b: &Value) -> Option<(f64, f64)> {
     match a {
-        Number(an) => {
+        NumberV(an) => {
             match b {
-                Number(bn) => Some((*an, *bn)),
+                NumberV(bn) => Some((*an, *bn)),
                 _ => None,
             }
         },
@@ -322,24 +322,25 @@ fn unwrap_num_lits(a: &Literal, b: &Literal) -> Option<(f64, f64)> {
     }
 }
 
-fn is_truthy(lit: &Literal) -> bool {
-    is_truthy_lit(lit) == Literal::True
+fn is_truthy(lit: &Value) -> bool {
+    is_truthy_lit(lit) == Value::TrueV
 }
 
-fn is_truthy_lit(lit: &Literal) -> Literal {
+fn is_truthy_lit(lit: &Value) -> Value {
     match lit {
-        StringLit(_) => Literal::True,
-        Number(_) => Literal::True,
-        True => Literal::True,
-        False => Literal::False,
-        Nil => Literal::False,
+        ClosureV => Value::TrueV,
+        StringV(_) => Value::TrueV,
+        NumberV(_) => Value::TrueV,
+        TrueV => Value::TrueV,
+        FalseV => Value::FalseV,
+        NilV => Value::FalseV,
     }
 }
 
-fn negate(lit: Literal) -> Literal {
+fn negate(lit: Value) -> Value {
     match lit {
-        True => Literal::False,
-        False => Literal::True,
+        TrueV => Value::FalseV,
+        FalseV => Value::TrueV,
         _ => panic!("not a boolean literal"),
     }
 }
@@ -347,8 +348,8 @@ fn negate(lit: Literal) -> Literal {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::expr::Expr::{LiteralExpr, Unary, Binary, Grouping};
-    use crate::ast::literals::Literal;
+    use crate::ast::expr::Expr::{ValueExpr, Unary, Binary, Grouping};
+    use crate::value::Value;
     use crate::token::{Token, TokenType};
     use TokenType::*;
 
@@ -365,12 +366,12 @@ mod tests {
                 literal: None,
                 line: 1,
             },
-            Box::new(LiteralExpr(Number(1.0))),
-            Box::new(LiteralExpr(Number(2.0)))
+            Box::new(ValueExpr(NumberV(1.0))),
+            Box::new(ValueExpr(NumberV(2.0)))
         ));
 
         assert!(val.is_ok());
-        assert_eq!(val.unwrap(), Literal::Number(3.0))
+        assert_eq!(val.unwrap(), Value::NumberV(3.0))
     }
 
     #[test]
@@ -386,12 +387,12 @@ mod tests {
                 literal: None,
                 line: 1,
             },
-            Box::new(LiteralExpr(StringLit("as".to_string()))),
-            Box::new(LiteralExpr(StringLit("df".to_string())))
+            Box::new(ValueExpr(StringV("as".to_string()))),
+            Box::new(ValueExpr(StringV("df".to_string())))
         ));
 
         assert!(val.is_ok());
-        assert_eq!(val.unwrap(), StringLit("asdf".to_string()))
+        assert_eq!(val.unwrap(), StringV("asdf".to_string()))
     }
 
     #[test]
@@ -407,11 +408,11 @@ mod tests {
                 literal: None,
                 line: 1,
             },
-            Box::new(LiteralExpr(True)),
+            Box::new(ValueExpr(TrueV)),
         ));
 
         assert!(val.is_ok());
-        assert_eq!(val.unwrap(), Literal::False)
+        assert_eq!(val.unwrap(), Value::FalseV)
     }
 
     #[test]
@@ -427,11 +428,11 @@ mod tests {
                 literal: None,
                 line: 1,
             },
-            Box::new(LiteralExpr(Number(2.0)))
+            Box::new(ValueExpr(NumberV(2.0)))
         ));
 
         assert!(val.is_ok());
-        assert_eq!(val.unwrap(), Literal::Number(-2.0));
+        assert_eq!(val.unwrap(), Value::NumberV(-2.0));
     }
 
     #[test]
@@ -440,14 +441,14 @@ mod tests {
             environment: Environment::new(None),
         };
 
-        interpreter.environment.define("a".to_string(), Number(1.0));
+        interpreter.environment.define("a".to_string(), NumberV(1.0));
 
         let val = interpreter.visit_expr(
             &Identifier("a".to_string()),
         );
 
         assert!(val.is_ok());
-        assert_eq!(val.unwrap(), Number(1.0));
+        assert_eq!(val.unwrap(), NumberV(1.0));
     }
 
     #[test]
@@ -463,7 +464,7 @@ mod tests {
                 literal: None,
                 line: 1,
             },
-            Box::new(LiteralExpr(Number(1.0))),
+            Box::new(ValueExpr(NumberV(1.0))),
             Box::new(Grouping(Box::new(
                 Unary(
                     Token {
@@ -472,12 +473,12 @@ mod tests {
                         literal: None,
                         line: 1,
                     },
-                    Box::new(LiteralExpr(Number(2.0)))
+                    Box::new(ValueExpr(NumberV(2.0)))
                 )
             )))
         ));
 
         assert!(val.is_ok());
-        assert_eq!(val.unwrap(), Literal::Number(-1.0))
+        assert_eq!(val.unwrap(), Value::NumberV(-1.0))
     }
 }

@@ -1,11 +1,12 @@
 use crate::ast::expr::Expr;
 use crate::ast::expr::Expr::*;
 use crate::ast::stmt::Statement;
-use crate::ast::literals::Literal;
 use crate::errors::ErrorReporter;
 use crate::token::{Token, TokenType};
 
-use Literal::{True, False, Nil};
+use crate::value::Value::{TrueV, FalseV, NilV, StringV, NumberV};
+use crate::ast::literals::Literal;
+
 use TokenType::*;
 
 #[derive(Debug)]
@@ -74,7 +75,7 @@ impl<'a, 'b> Parser<'a, 'b> {
         let name = self.consume(&IDENTIFIER, "Needed identifier after var")?
             .clone();
 
-        let mut initializer = LiteralExpr(Nil);
+        let mut initializer = ValueExpr(NilV);
         if self.matches_single(&EQUAL) {
             initializer = self.expression()?;
         }
@@ -126,7 +127,7 @@ impl<'a, 'b> Parser<'a, 'b> {
 
 
         let condition = if self.matches_single(&SEMICOLON) {
-            LiteralExpr(Literal::True)
+            ValueExpr(TrueV)
         } else {
             let condition = self.expression()?;
             self.consume(&SEMICOLON, "Expect two semicolons in for loop")?;
@@ -326,15 +327,15 @@ impl<'a, 'b> Parser<'a, 'b> {
         match &self.peek().token_type {
             FALSE =>  {
                 self.advance();
-                Ok(LiteralExpr(False))
+                Ok(ValueExpr(FalseV))
             },
             TRUE => {
                 self.advance();
-                Ok(LiteralExpr(True))
+                Ok(ValueExpr(TrueV))
             },
             NIL => {
                 self.advance();
-                Ok(LiteralExpr(Nil))
+                Ok(ValueExpr(NilV))
             },
             LEFT_PAREN => {
                 self.advance();
@@ -352,7 +353,10 @@ impl<'a, 'b> Parser<'a, 'b> {
                 self.advance();
                 match &curr.literal {
                     Some(lit) => {
-                        Ok(LiteralExpr(lit.clone()))
+                        match lit {
+                            Literal::StringLit(s) => Ok(ValueExpr(StringV(s.clone()))),
+                            Literal::Number(n) => Ok(ValueExpr(NumberV(*n)))
+                        }
                     },
                     None => Err(ParseError {
                         line: curr.line,
@@ -483,11 +487,11 @@ impl<'a, 'b> Parser<'a, 'b> {
 mod tests {
     use super::*;
     use crate::token::Token;
-    use crate::ast::literals::Literal;
+    use crate::ast::literals::Literal::{Number, StringLit};
 
     fn init() {
         let _ = env_logger::builder().is_test(true).try_init();
-    }   use Literal::{Number, StringLit};
+    }
 
 
     #[test]
@@ -518,7 +522,7 @@ mod tests {
 
         match &results[0] {
             Ok(e) => {
-                assert_eq!(*e, Statement::Expression(LiteralExpr(Number(12.0))));
+                assert_eq!(*e, Statement::Expression(ValueExpr(NumberV(12.0))));
             },
             Err(_) => assert!(false),
         }
@@ -552,7 +556,7 @@ mod tests {
 
         match &results[0] {
             Ok(e) => {
-                assert_eq!(*e, Statement::Expression(LiteralExpr(StringLit("test".to_string()))));
+                assert_eq!(*e, Statement::Expression(ValueExpr(StringV("test".to_string()))));
             },
             Err(_) => assert!(false),
         }
@@ -599,7 +603,8 @@ mod tests {
                         literal: None,
                         line: 1,
                     },
-                    LiteralExpr(Literal::Nil)));
+                    ValueExpr(NilV))
+                );
             },
             Err(_) => assert!(false),
         }
@@ -646,7 +651,7 @@ mod tests {
             Ok(e) => {
                 assert_eq!(*e, Statement::Expression(Assignment(
                     String::from("a"),
-                    Box::new(LiteralExpr(Number(1.0)))))
+                    Box::new(ValueExpr(NumberV(1.0)))))
                 );
             },
             Err(_) => assert!(false),
@@ -707,7 +712,7 @@ mod tests {
             Ok(e) => {
                 assert_eq!(*e, Statement::Block(vec!(Statement::Expression(Assignment(
                     String::from("a"),
-                    Box::new(LiteralExpr(Number(1.0)))))
+                    Box::new(ValueExpr(NumberV(1.0)))))
                 )));
             },
             Err(_) => assert!(false),
@@ -761,8 +766,8 @@ mod tests {
                         literal: None,
                         line: 1,
                     },
-                    Box::new(LiteralExpr(Number(1.0))),
-                    Box::new(LiteralExpr(Number(2.0)))
+                    Box::new(ValueExpr(NumberV(1.0))),
+                    Box::new(ValueExpr(NumberV(2.0)))
                 )));
             },
             Err(_) => assert!(false),
@@ -828,8 +833,8 @@ mod tests {
                         literal: None,
                         line: 1,
                     },
-                    Box::new(LiteralExpr(Number(1.0))),
-                    Box::new(Grouping(Box::new(LiteralExpr(Number(2.0)))))
+                    Box::new(ValueExpr(NumberV(1.0))),
+                    Box::new(Grouping(Box::new(ValueExpr(NumberV(2.0)))))
                 )));
             },
             Err(_) => assert!(false),

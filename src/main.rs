@@ -19,6 +19,7 @@ mod token;
 mod errors;
 mod parser;
 mod interp;
+mod value;
 
 fn main() {
     env_logger::from_env(Env::default()
@@ -85,7 +86,7 @@ fn run_prompt() -> Result<(), String> {
     }
 }
 
-fn run(input: String, interpreter: &mut interp::interpreter::Interpreter, error_reporter: &mut errors::ErrorReporter) -> Result<Option<ast::literals::Literal>, String> {
+fn run(input: String, interpreter: &mut interp::interpreter::Interpreter, error_reporter: &mut errors::ErrorReporter) -> Result<Option<value::Value>, String> {
     let mut time = Instant::now();
     let mut scanner: scanner::Scanner = scanner::Scanner::new(&input, error_reporter);
 

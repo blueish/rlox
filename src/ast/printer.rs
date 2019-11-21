@@ -64,7 +64,7 @@ impl Visitor<String> for PrettyPrinter {
         match e {
             Identifier(id) => format!("id: {{ {} }}", id),
             Assignment(id, boxed_expr) => format!("id {} -> {}", id, self.visit_expr(boxed_expr)),
-            LiteralExpr(typ) => format!("{}", typ),
+            ValueExpr(typ) => format!("{}", typ),
             Grouping(bx) => format!("(group {})", self.visit_expr(bx)),
             Unary(typ, bx) => format!("({} {})", typ, self.visit_expr(bx)),
             Binary(tok, left, right) => format!("({} {} {})", self.visit_expr(left), tok, self.visit_expr(right)),
@@ -86,7 +86,7 @@ impl Visitor<String> for PrettyPrinter {
 mod tests {
     use super::*;
     use crate::token;
-    use crate::ast::literals::Literal::*;
+    use crate::value::Value::*;
 
     #[test]
     fn simple_print() {
@@ -107,12 +107,12 @@ mod tests {
                         literal: None,
                         line: 0,
                     },
-                    Box::new(LiteralExpr(Number(123.0))),
+                    Box::new(ValueExpr(NumberV(123.0))),
                 )
             ),
             Box::new(
                 Grouping(
-                    Box::new(LiteralExpr(Number(45.67)))
+                    Box::new(ValueExpr(NumberV(45.67)))
                 )
             )
         ));

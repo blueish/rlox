@@ -1,8 +1,9 @@
 use crate::ast::expr::Expr;
 use crate::ast::expr::Expr::*;
 use crate::ast::stmt::Statement;
+use crate::ast::literals::Literal;
 use crate::errors::ErrorReporter;
-use crate::token::{Token, TokenType, Literal};
+use crate::token::{Token, TokenType};
 
 use Literal::{True, False, Nil};
 use TokenType::*;
@@ -285,8 +286,6 @@ impl<'a, 'b> Parser<'a, 'b> {
         return match parse_level {
             Some(token) => {
                 while self.matches_single(token) {
-                    let right: Expr = self.parse_unary_exprs(operands, level + 1)?;
-
                     let m_op = self.previous().clone();
                     let op = match m_op {
                         Some(op) => op.clone(),
@@ -297,13 +296,30 @@ impl<'a, 'b> Parser<'a, 'b> {
                         }),
                     };
 
+                    let right: Expr = self.parse_unary_exprs(operands, 0)?;
+
+
                     return Ok(Unary(op, Box::new(right)));
                 }
 
-                return self.parse_primary();
+                return self.parse_unary_exprs(operands, level + 1);
             }
-            None => self.parse_primary(),
+            None => self.parse_call(),
         };
+    }
+
+    fn parse_call(&mut self) -> Result<Expr, ParseError> {
+        let mut expr = self.parse_primary()?;
+
+        loop {
+            if self.matches_single(&LEFT_PAREN) {
+                expr = self.finish_call(expr)?;
+            } else {
+                break;
+            }
+        }
+
+        Ok(expr)
     }
 
     fn parse_primary(&mut self) -> Result<Expr, ParseError> {
@@ -379,6 +395,32 @@ impl<'a, 'b> Parser<'a, 'b> {
         }
     }
 
+    fn finish_call(&mut self, callee: Expr) -> Result<Expr, ParseError> {
+        let mut args = Vec::new();
+
+        if !self.check(&RIGHT_PAREN) {
+            loop {
+                if args.len() >= 255 {
+                    let tok = self.peek();
+                    return Err(ParseError {
+                        line: tok.line,
+                        lexeme: tok.lexeme.clone(),
+                        message: "Cannot have more than 255 arguments".to_string(),
+                    });
+                }
+                args.push(self.expression()?);
+
+                if !self.matches_single(&COMMA) {
+                    break;
+                }
+            }
+        }
+
+        let tok = self.consume(&RIGHT_PAREN, "Expect ')' after arguments")?;
+
+        Ok(Call(Box::new(callee), tok.line, args))
+    }
+
     fn matches_single(&mut self, token: &TokenType) -> bool {
         if self.check(token) {
             self.advance();
@@ -440,7 +482,8 @@ impl<'a, 'b> Parser<'a, 'b> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::token::{Token, Literal};
+    use crate::token::Token;
+    use crate::ast::literals::Literal;
 
     fn init() {
         let _ = env_logger::builder().is_test(true).try_init();

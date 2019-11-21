@@ -2,9 +2,10 @@ use crate::ast::Visitor;
 use crate::parser::ParseError;
 use crate::ast::expr::Expr;
 use crate::ast::stmt::Statement;
-use Statement::*;
 
+use Statement::*;
 use Expr::*;
+
 
 pub struct PrettyPrinter {}
 
@@ -67,6 +68,16 @@ impl Visitor<String> for PrettyPrinter {
             Grouping(bx) => format!("(group {})", self.visit_expr(bx)),
             Unary(typ, bx) => format!("({} {})", typ, self.visit_expr(bx)),
             Binary(tok, left, right) => format!("({} {} {})", self.visit_expr(left), tok, self.visit_expr(right)),
+            Call(callee, _, args) => {
+                let mut arg_str = "".to_string();
+
+                for arg in args {
+                    arg_str.push_str(", ");
+                    arg_str.push_str(&self.visit_expr(arg));
+                }
+
+                format!("(CALL {} ( {} ) )", self.visit_expr(callee), arg_str)
+            }
         }
     }
 }
@@ -75,7 +86,7 @@ impl Visitor<String> for PrettyPrinter {
 mod tests {
     use super::*;
     use crate::token;
-    use crate::token::Literal::*;
+    use crate::ast::literals::Literal::*;
 
     #[test]
     fn simple_print() {

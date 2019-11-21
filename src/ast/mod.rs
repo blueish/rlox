@@ -1,6 +1,7 @@
 pub mod expr;
 pub mod printer;
 pub mod stmt;
+pub mod literals;
 
 use stmt::Statement;
 use expr::Expr;

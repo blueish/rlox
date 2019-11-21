@@ -4,10 +4,10 @@ use std::str;
 use crate::token;
 use crate::errors;
 use crate::constants;
+use crate::ast::literals::Literal;
 
+use Literal::{Number, StringLit};
 use token::TokenType::*;
-use token::Literal;
-use token::Literal::{Number, StringLit};
 
 pub struct Scanner<'a, 'b> {
     source: &'a [u8],

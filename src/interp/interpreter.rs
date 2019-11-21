@@ -3,7 +3,7 @@ use crate::interp::env::Environment;
 use crate::ast::Visitor;
 use crate::ast::expr::Expr;
 use crate::ast::stmt::Statement;
-use crate::token::{Literal};
+use crate::ast::literals::Literal;
 
 use Statement::*;
 use Expr::*;
@@ -60,6 +60,38 @@ impl Visitor<Result<Literal, InterpErr>> for Interpreter {
     fn visit_expr(&mut self, e: &Expr) -> Result<Literal, InterpErr> {
         use crate::token::TokenType::*;
         match e {
+            Call(_, _, _) => Ok(Nil),
+            // Call(callee, line_num,  args) => {
+            //     // Evaluate fun to a function declaration
+            //     let f = self.visit_expr(callee)?;
+
+            //     // Evaluate body in new environment:
+            //     match f {
+            //         Closure(body, param_names) => {
+            //             // Create a new env for the function
+            //             let old_env = self.environment.clone();
+            //             self.environment = Environment::new(Some(Box::new(old_env)));
+
+            //             let arguments = Vec::new();
+
+            //             for arg in args {
+            //                 arguments.push(self.visit_expr(arg)?);
+            //             }
+
+
+
+            //             self.visit_stmt(body);
+
+            //             // TODO: revert to previous env
+
+            //             // TODO: ensure we don't have dynamic scoping, potentially give only an empty env?
+            //             Ok(Nil)
+            //         },
+            //         _ => Err(InterpErr {
+            //             msg: format!("Error calling function at line {}, ", line_num)
+            //         }),
+            //     }
+            // },
             Identifier(id) => match self.environment.get(id) {
                 Some(val) => Ok(val.clone()),
                 None => {
@@ -316,7 +348,8 @@ fn negate(lit: Literal) -> Literal {
 mod tests {
     use super::*;
     use crate::ast::expr::Expr::{LiteralExpr, Unary, Binary, Grouping};
-    use crate::token::{Token, TokenType, Literal};
+    use crate::ast::literals::Literal;
+    use crate::token::{Token, TokenType};
     use TokenType::*;
 
     #[test]

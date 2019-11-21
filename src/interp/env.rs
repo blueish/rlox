@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::token::{Literal};
+use crate::ast::literals::Literal;
 
 #[derive(Clone, Debug)]
 pub struct Environment {

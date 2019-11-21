@@ -1,15 +1,17 @@
 use crate::token;
 use crate::ast::{Visitor, Node};
+use crate::ast::literals::Literal;
 
 
 #[derive(PartialEq, Debug)]
 pub enum Expr {
     Identifier(String),
     Assignment(String, Box<Expr>),
-    LiteralExpr(token::Literal),
+    LiteralExpr(Literal),
     Grouping(Box<Expr>),
     Unary(token::Token, Box<Expr>),
     Binary(token::Token, Box<Expr>, Box<Expr>),
+    Call(Box<Expr>, usize, Vec<Expr>),
 }
 
 impl Node for Expr {

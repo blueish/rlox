@@ -22,8 +22,8 @@ mod interp;
 
 fn main() {
     env_logger::from_env(Env::default()
-                         .default_filter_or("info")
-                         // .default_filter_or("debug")
+                         // .default_filter_or("info")
+                         .default_filter_or("debug")
     ).init();
 
     let args: Vec<String> = env::args().collect();
@@ -85,7 +85,7 @@ fn run_prompt() -> Result<(), String> {
     }
 }
 
-fn run(input: String, interpreter: &mut interp::interpreter::Interpreter, error_reporter: &mut errors::ErrorReporter) -> Result<Option<token::Literal>, String> {
+fn run(input: String, interpreter: &mut interp::interpreter::Interpreter, error_reporter: &mut errors::ErrorReporter) -> Result<Option<ast::literals::Literal>, String> {
     let mut time = Instant::now();
     let mut scanner: scanner::Scanner = scanner::Scanner::new(&input, error_reporter);
 

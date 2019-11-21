@@ -1,3 +1,5 @@
+use crate::ast::literals::Literal;
+
 use std::option::Option;
 use std::fmt;
 
@@ -38,14 +40,6 @@ impl fmt::Display for Token {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum Literal {
-    StringLit(String),
-    Number(f64),
-    True,
-    False,
-    Nil,
-}
 
 impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

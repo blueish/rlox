@@ -106,7 +106,7 @@ impl Visitor<Result<Value, InterpErr>> for Interpreter {
 
                 Ok(val)
             },
-            LiteralExpr(lit) => Ok(lit.clone()),
+            ValueExpr(lit) => Ok(lit.clone()),
             Grouping(bx) => Ok(self.visit_expr(bx)?),
             Unary(tok, bx) => {
                 let right = self.visit_expr(bx)?;
@@ -347,7 +347,7 @@ fn negate(lit: Value) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::expr::Expr::{LiteralExpr, Unary, Binary, Grouping};
+    use crate::ast::expr::Expr::{ValueExpr, Unary, Binary, Grouping};
     use crate::ast::literals::Value;
     use crate::token::{Token, TokenType};
     use TokenType::*;
@@ -365,8 +365,8 @@ mod tests {
                 literal: None,
                 line: 1,
             },
-            Box::new(LiteralExpr(NumberV(1.0))),
-            Box::new(LiteralExpr(NumberV(2.0)))
+            Box::new(ValueExpr(NumberV(1.0))),
+            Box::new(ValueExpr(NumberV(2.0)))
         ));
 
         assert!(val.is_ok());
@@ -386,8 +386,8 @@ mod tests {
                 literal: None,
                 line: 1,
             },
-            Box::new(LiteralExpr(StringV("as".to_string()))),
-            Box::new(LiteralExpr(StringV("df".to_string())))
+            Box::new(ValueExpr(StringV("as".to_string()))),
+            Box::new(ValueExpr(StringV("df".to_string())))
         ));
 
         assert!(val.is_ok());
@@ -407,7 +407,7 @@ mod tests {
                 literal: None,
                 line: 1,
             },
-            Box::new(LiteralExpr(TrueV)),
+            Box::new(ValueExpr(TrueV)),
         ));
 
         assert!(val.is_ok());
@@ -427,7 +427,7 @@ mod tests {
                 literal: None,
                 line: 1,
             },
-            Box::new(LiteralExpr(NumberV(2.0)))
+            Box::new(ValueExpr(NumberV(2.0)))
         ));
 
         assert!(val.is_ok());
@@ -463,7 +463,7 @@ mod tests {
                 literal: None,
                 line: 1,
             },
-            Box::new(LiteralExpr(NumberV(1.0))),
+            Box::new(ValueExpr(NumberV(1.0))),
             Box::new(Grouping(Box::new(
                 Unary(
                     Token {
@@ -472,7 +472,7 @@ mod tests {
                         literal: None,
                         line: 1,
                     },
-                    Box::new(LiteralExpr(NumberV(2.0)))
+                    Box::new(ValueExpr(NumberV(2.0)))
                 )
             )))
         ));

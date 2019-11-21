@@ -86,7 +86,7 @@ impl Visitor<String> for PrettyPrinter {
 mod tests {
     use super::*;
     use crate::token;
-    use crate::ast::literals::Literal::*;
+    use crate::value::Value::*;
 
     #[test]
     fn simple_print() {
@@ -107,12 +107,12 @@ mod tests {
                         literal: None,
                         line: 0,
                     },
-                    Box::new(ValueExpr(Number(123.0))),
+                    Box::new(ValueExpr(NumberV(123.0))),
                 )
             ),
             Box::new(
                 Grouping(
-                    Box::new(ValueExpr(Number(45.67)))
+                    Box::new(ValueExpr(NumberV(45.67)))
                 )
             )
         ));

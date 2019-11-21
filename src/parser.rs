@@ -4,7 +4,9 @@ use crate::ast::stmt::Statement;
 use crate::errors::ErrorReporter;
 use crate::token::{Token, TokenType};
 
-use crate::value::Value::{TrueV, FalseV, NilV};
+use crate::value::Value::{TrueV, FalseV, NilV, StringV, NumberV};
+use crate::ast::literals::Literal;
+
 use TokenType::*;
 
 #[derive(Debug)]
@@ -351,7 +353,10 @@ impl<'a, 'b> Parser<'a, 'b> {
                 self.advance();
                 match &curr.literal {
                     Some(lit) => {
-                        Ok(ValueExpr(lit.clone()))
+                        match lit {
+                            Literal::StringLit(s) => Ok(ValueExpr(StringV(s.clone()))),
+                            Literal::Number(n) => Ok(ValueExpr(NumberV(*n)))
+                        }
                     },
                     None => Err(ParseError {
                         line: curr.line,
@@ -482,11 +487,11 @@ impl<'a, 'b> Parser<'a, 'b> {
 mod tests {
     use super::*;
     use crate::token::Token;
-    use crate::ast::literals::Literal;
+    use crate::ast::literals::Literal::{Number, StringLit};
 
     fn init() {
         let _ = env_logger::builder().is_test(true).try_init();
-    }   use Literal::{Number, StringLit};
+    }
 
 
     #[test]
@@ -517,7 +522,7 @@ mod tests {
 
         match &results[0] {
             Ok(e) => {
-                assert_eq!(*e, Statement::Expression(ValueExpr(Number(12.0))));
+                assert_eq!(*e, Statement::Expression(ValueExpr(NumberV(12.0))));
             },
             Err(_) => assert!(false),
         }
@@ -551,7 +556,7 @@ mod tests {
 
         match &results[0] {
             Ok(e) => {
-                assert_eq!(*e, Statement::Expression(ValueExpr(StringLit("test".to_string()))));
+                assert_eq!(*e, Statement::Expression(ValueExpr(StringV("test".to_string()))));
             },
             Err(_) => assert!(false),
         }
@@ -598,7 +603,8 @@ mod tests {
                         literal: None,
                         line: 1,
                     },
-                    ValueExpr(Literal::NilV)));
+                    ValueExpr(NilV))
+                );
             },
             Err(_) => assert!(false),
         }
@@ -645,7 +651,7 @@ mod tests {
             Ok(e) => {
                 assert_eq!(*e, Statement::Expression(Assignment(
                     String::from("a"),
-                    Box::new(ValueExpr(Number(1.0)))))
+                    Box::new(ValueExpr(NumberV(1.0)))))
                 );
             },
             Err(_) => assert!(false),
@@ -706,7 +712,7 @@ mod tests {
             Ok(e) => {
                 assert_eq!(*e, Statement::Block(vec!(Statement::Expression(Assignment(
                     String::from("a"),
-                    Box::new(ValueExpr(Number(1.0)))))
+                    Box::new(ValueExpr(NumberV(1.0)))))
                 )));
             },
             Err(_) => assert!(false),
@@ -760,8 +766,8 @@ mod tests {
                         literal: None,
                         line: 1,
                     },
-                    Box::new(ValueExpr(Number(1.0))),
-                    Box::new(ValueExpr(Number(2.0)))
+                    Box::new(ValueExpr(NumberV(1.0))),
+                    Box::new(ValueExpr(NumberV(2.0)))
                 )));
             },
             Err(_) => assert!(false),
@@ -827,8 +833,8 @@ mod tests {
                         literal: None,
                         line: 1,
                     },
-                    Box::new(ValueExpr(Number(1.0))),
-                    Box::new(Grouping(Box::new(ValueExpr(Number(2.0)))))
+                    Box::new(ValueExpr(NumberV(1.0))),
+                    Box::new(Grouping(Box::new(ValueExpr(NumberV(2.0)))))
                 )));
             },
             Err(_) => assert!(false),

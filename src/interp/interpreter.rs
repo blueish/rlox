@@ -251,7 +251,7 @@ impl Visitor<Result<Value, InterpErr>> for Interpreter {
         match s {
             Expression(e) => self.visit_expr(e),
             Print(e) => {
-                println!("{:#?}", self.visit_expr(e)?);
+                println!("{}", self.visit_expr(e)?);
                 Ok(NilV)
             },
             VarDec(tok, exp) => {
@@ -328,6 +328,7 @@ fn is_truthy(lit: &Value) -> bool {
 
 fn is_truthy_lit(lit: &Value) -> Value {
     match lit {
+        ClosureV => Value::TrueV,
         StringV(_) => Value::TrueV,
         NumberV(_) => Value::TrueV,
         TrueV => Value::TrueV,
@@ -348,7 +349,7 @@ fn negate(lit: Value) -> Value {
 mod tests {
     use super::*;
     use crate::ast::expr::Expr::{ValueExpr, Unary, Binary, Grouping};
-    use crate::ast::literals::Value;
+    use crate::value::Value;
     use crate::token::{Token, TokenType};
     use TokenType::*;
 

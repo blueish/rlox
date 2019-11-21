@@ -3,7 +3,7 @@ use crate::ast::{Visitor, Node};
 use crate::value::Value;
 
 
-#[derive(PartialEq, Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Expr {
     Identifier(String),
     Assignment(String, Box<Expr>),

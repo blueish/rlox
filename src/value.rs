@@ -1,13 +1,15 @@
+use crate::callable::Callable;
 use std::fmt;
+use std::rc::Rc;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     StringV(String),
     NumberV(f64),
     TrueV,
     FalseV,
     NilV,
-    ClosureV,
+    ClosureV(Rc<Box<Callable>>),
 }
 
 impl fmt::Display for Value {
@@ -18,9 +20,10 @@ impl fmt::Display for Value {
             Value::TrueV => write!(f, "{}", true),
             Value::FalseV => write!(f, "{}", false),
             Value::NilV => write!(f, "Nil", ),
-            Value::ClosureV => write!(f, "ClosureV", ),
+            Value::ClosureV(_) => write!(f, "ClosureV", ),
         }
     }
 }
+
 
 

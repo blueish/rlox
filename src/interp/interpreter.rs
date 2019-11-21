@@ -60,38 +60,32 @@ impl Visitor<Result<Value, InterpErr>> for Interpreter {
     fn visit_expr(&mut self, e: &Expr) -> Result<Value, InterpErr> {
         use crate::token::TokenType::*;
         match e {
-            Call(_, _, _) => Ok(NilV),
-            // Call(callee, line_num,  args) => {
-            //     // Evaluate fun to a function declaration
-            //     let f = self.visit_expr(callee)?;
+            Call(callee, _,  args) => {
+                // Evaluate fun to a function declaration
+                let f = self.visit_expr(callee)?;
 
-            //     // Evaluate body in new environment:
-            //     match f {
-            //         Closure(body, param_names) => {
-            //             // Create a new env for the function
-            //             let old_env = self.environment.clone();
-            //             self.environment = Environment::new(Some(Box::new(old_env)));
+                // Evaluate body in new environment:
+                let callable = match f {
+                    ClosureV(c) => c,
+                    _ => return Err(InterpErr {
+                        msg: format!("Can only call functions and classes"),
+                    }),
+                };
 
-            //             let arguments = Vec::new();
+                if callable.arity() != args.len() {
+                    return Err(InterpErr {
+                        msg: format!("Arity mismatch: {} params vs {} args", callable.arity(), args.len()),
+                    });
+                }
 
-            //             for arg in args {
-            //                 arguments.push(self.visit_expr(arg)?);
-            //             }
+                let mut arguments = Vec::new();
 
+                for arg in args {
+                    arguments.push(self.visit_expr(arg)?);
+                }
 
-
-            //             self.visit_stmt(body);
-
-            //             // TODO: revert to previous env
-
-            //             // TODO: ensure we don't have dynamic scoping, potentially give only an empty env?
-            //             Ok(NilV)
-            //         },
-            //         _ => Err(InterpErr {
-            //             msg: format!("Error calling function at line {}, ", line_num)
-            //         }),
-            //     }
-            // },
+                callable.call(self, arguments)
+            },
             Identifier(id) => match self.environment.get(id) {
                 Some(val) => Ok(val.clone()),
                 None => {
@@ -323,12 +317,15 @@ fn unwrap_num_lits(a: &Value, b: &Value) -> Option<(f64, f64)> {
 }
 
 fn is_truthy(lit: &Value) -> bool {
-    is_truthy_lit(lit) == Value::TrueV
+    match is_truthy_lit(lit) {
+        Value::TrueV => true,
+        _ => false,
+    }
 }
 
 fn is_truthy_lit(lit: &Value) -> Value {
     match lit {
-        ClosureV => Value::TrueV,
+        ClosureV(_) => Value::TrueV,
         StringV(_) => Value::TrueV,
         NumberV(_) => Value::TrueV,
         TrueV => Value::TrueV,

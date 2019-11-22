@@ -10,6 +10,7 @@ use crate::ast::literals::Literal;
 use crate::func::FunKind;
 
 use TokenType::*;
+use std::rc::Rc;
 
 #[derive(Debug, Clone)]
 pub struct ParseError {
@@ -90,7 +91,7 @@ impl<'a, 'b> Parser<'a, 'b> {
 
     fn func_declaration(&mut self, _kind: FunKind) -> Result<Statement, ParseError> {
         let name = self.consume(&IDENTIFIER, "Expect name for function")?.clone();
-        self.consume(&LEFT_PAREN, "Expect '(' after function name")?.clone();
+        self.consume(&LEFT_PAREN, "Expect '(' after function name")?;
 
         let mut params = Vec::new();
 
@@ -115,7 +116,7 @@ impl<'a, 'b> Parser<'a, 'b> {
 
         let body = self.block_statement()?;
 
-        Ok(Statement::FuncDecl(name, params, Box::new(body)))
+        Ok(Statement::FuncDecl(name, params, Rc::new(body)))
     }
 }
 
@@ -521,12 +522,7 @@ impl<'a, 'b> Parser<'a, 'b> {
 mod tests {
     use super::*;
     use crate::token::Token;
-    use crate::ast::literals::Literal::{Number, StringLit};
-
-    fn init() {
-        let _ = env_logger::builder().is_test(true).try_init();
-    }
-
+    use crate::ast::literals::Literal::{Number};
 
     #[test]
     fn num_lit() {

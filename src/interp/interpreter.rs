@@ -311,14 +311,10 @@ impl Visitor<Result<Value, InterpErr>> for Interpreter {
                     .map(|t| t.lexeme.clone())
                     .collect();
 
-                // let mut b = body.clone();
-                // std::mem::replace(&mut b, &body);
-                let b = Box::into_raw(*body);
-
                 let fun = ClosureV(Rc::new(Box::new(
                     LoxCallable {
                         parameter_names: params,
-                        body: b
+                        body: Rc::clone(body),
                     }
                 )));
 

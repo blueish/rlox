@@ -1,5 +1,6 @@
 use crate::token::Token;
 use super::expr::Expr;
+use std::rc::Rc;
 
 #[derive(Debug, PartialEq)]
 pub enum Statement {
@@ -9,5 +10,5 @@ pub enum Statement {
     Block(Vec<Statement>),
     IfStmt(Expr, Box<Statement>, Option<Box<Statement>>),
     WhileStmt(Expr, Box<Statement>),
-    FuncDecl(Token, Vec<Token>, Box<Statement>) // Note: must be a Statement::Block, or it's an interp err
+    FuncDecl(Token, Vec<Token>, Rc<Statement>) // Note: must be a Statement::Block, or it's an interp err
 }

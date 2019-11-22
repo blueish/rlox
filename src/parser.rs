@@ -7,9 +7,11 @@ use crate::token::{Token, TokenType};
 use crate::value::Value::{TrueV, FalseV, NilV, StringV, NumberV};
 use crate::ast::literals::Literal;
 
+use crate::func::FunKind;
+
 use TokenType::*;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ParseError {
     line: usize,
     lexeme: String,
@@ -58,6 +60,8 @@ impl<'a, 'b> Parser<'a, 'b> {
     fn declaration(&mut self) -> Result<Statement, ParseError> {
         let res = if self.matches_single(&VAR) {
             self.var_declaration()
+        } else if self.matches_single(&FUN) {
+            self.func_declaration(FunKind::Function)
         } else {
             self.statement()
         };
@@ -82,6 +86,36 @@ impl<'a, 'b> Parser<'a, 'b> {
 
         self.consume(&SEMICOLON, "Expected ';' after var decl")?;
         return Ok(Statement::VarDec(name,  initializer));
+    }
+
+    fn func_declaration(&mut self, _kind: FunKind) -> Result<Statement, ParseError> {
+        let name = self.consume(&IDENTIFIER, "Expect name for function")?.clone();
+        self.consume(&LEFT_PAREN, "Expect '(' after function name")?.clone();
+
+        let mut params = Vec::new();
+
+        // Parse all parameters in function
+        if !self.check(&RIGHT_PAREN) {
+            loop {
+                if params.len() >= 255 {
+                    let tok = self.peek().clone();
+                    self.error_reporter.report(tok.line, tok.lexeme, "Cannot have more than 255 parameters".to_string());
+                }
+
+                params.push(self.consume(&IDENTIFIER, "Expect Parameter name")?.clone());
+                if !self.matches_single(&COMMA) {
+                    break;
+                }
+            }
+        }
+        self.consume(&RIGHT_PAREN, "Expect ')' after parameters")?;
+
+        // Parse function body
+        self.consume(&LEFT_BRACE, "Expect '{' before body")?;
+
+        let body = self.block_statement()?;
+
+        Ok(Statement::FuncDecl(name, params, Box::new(body)))
     }
 }
 

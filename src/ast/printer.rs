@@ -56,7 +56,21 @@ impl Visitor<String> for PrettyPrinter {
                 "WHILE ({}) -> {}",
                 self.visit_expr(c),
                 self.visit_stmt(b),
-            )
+            ),
+            FuncDecl(id_tok, param_toks, body) => {
+                let mut param_str = String::from("");
+                for param in param_toks {
+                    param_str.push_str(", ");
+                    param_str.push_str(&param.lexeme);
+                }
+
+                format!(
+                    "FUNC {} ({}) {{\n{}\n}}",
+                    id_tok.lexeme,
+                    param_str,
+                    self.visit_stmt(&*body),
+                )
+            },
         }
     }
 
@@ -69,14 +83,14 @@ impl Visitor<String> for PrettyPrinter {
             Unary(typ, bx) => format!("({} {})", typ, self.visit_expr(bx)),
             Binary(tok, left, right) => format!("({} {} {})", self.visit_expr(left), tok, self.visit_expr(right)),
             Call(callee, _, args) => {
-                let mut arg_str = "".to_string();
+                let mut param_str = "".to_string();
 
                 for arg in args {
-                    arg_str.push_str(", ");
-                    arg_str.push_str(&self.visit_expr(arg));
+                    param_str.push_str(", ");
+                    param_str.push_str(&self.visit_expr(arg));
                 }
 
-                format!("(CALL {} ( {} ) )", self.visit_expr(callee), arg_str)
+                format!("(CALL {} ( {} ) )", self.visit_expr(callee), param_str)
             }
         }
     }

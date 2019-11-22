@@ -304,6 +304,28 @@ impl Visitor<Result<Value, InterpErr>> for Interpreter {
 
                 Ok(NilV)
             },
+            FuncDecl(id_tok, param_toks, body) => {
+                let name = id_tok.lexeme.clone();
+
+                let params = param_toks.iter()
+                    .map(|t| t.lexeme.clone())
+                    .collect();
+
+                // let mut b = body.clone();
+                // std::mem::replace(&mut b, &body);
+                let b = Box::into_raw(*body);
+
+                let fun = ClosureV(Rc::new(Box::new(
+                    LoxCallable {
+                        parameter_names: params,
+                        body: b
+                    }
+                )));
+
+                self.environment.define(name, fun);
+
+                Ok(NilV)
+            }
         }
     }
 }

@@ -1,6 +1,4 @@
 use std::fmt;
-use std::cmp;
-
 use crate::value::Value;
 
 use crate::interp::interpreter::{Interpreter, InterpErr};

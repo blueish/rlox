@@ -1,9 +1,15 @@
-use crate::interp::env::Environment;
+use std::rc::Rc;
+
 use crate::value::Value;
 
 use crate::ast::Visitor;
 use crate::ast::expr::Expr;
 use crate::ast::stmt::Statement;
+
+use crate::func::builtins::BuiltinClock;
+use crate::func::LoxCallable;
+
+use super::env::Environment;
 
 use Statement::*;
 use Expr::*;
@@ -28,8 +34,17 @@ pub struct Interpreter {
 
 impl Interpreter {
     pub fn new() -> Interpreter {
+        let mut env = Environment::new(None);
+
+        env.define(
+            "clock".to_string(),
+            ClosureV(Rc::new(Box::new(
+                BuiltinClock {}
+            )))
+        );
+
         Interpreter {
-            environment: Environment::new(None)
+            environment: env,
         }
     }
 

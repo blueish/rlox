@@ -20,7 +20,7 @@ mod errors;
 mod parser;
 mod interp;
 mod value;
-mod callable;
+mod func;
 
 fn main() {
     env_logger::from_env(Env::default()

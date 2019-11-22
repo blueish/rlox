@@ -1,7 +1,7 @@
 use crate::token::Token;
 use super::expr::Expr;
 
-#[derive(PartialEq, Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Statement {
     Expression(Expr),
     Print(Expr),
